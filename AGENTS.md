@@ -6,7 +6,7 @@
 
 ## Architecture Snapshot
 - Single package directory: `force-app` (`sfdx-project.json`).
-- Expected Salesforce metadata root: `force-app/main/default/` (currently empty in this snapshot).
+- Expected Salesforce metadata root: `force-app/main/default/` (not present in this snapshot yet; add when committing first metadata).
 - Local quality toolchain lives in Node config files at repo root:
   - `eslint.config.js` for Aura/LWC linting profiles
   - `jest.config.js` for LWC unit tests
@@ -24,7 +24,11 @@
   ```
 - Run LWC tests:
   ```bash
-  npm run test:unit
+  npm run test:lwc
+  ```
+- Run full test flow (LWC CI + Apex checks):
+  ```bash
+  npm run test
   ```
 - Run related tests in pre-commit style (already wired via `lint-staged`):
   ```bash
@@ -34,12 +38,16 @@
   ```bash
   npm run prettier
   ```
+- Run full local validation (lint + prettier check + LWC Jest CI mode + Apex checks):
+  ```bash
+  npm run validate
+  ```
 
 ## Project-Specific Conventions
 - Use **ESLint flat config** (`eslint.config.js`), not legacy `.eslintrc*`.
 - LWC test files match `**/lwc/**/*.test.js`; these explicitly disable `@lwc/lwc/no-unexpected-wire-adapter-usages`.
 - Jest ignores `.localdevserver` (`jest.config.js`); do not rely on files there in tests.
-- Pre-commit behavior is enforced by Husky + `lint-staged` from `package.json` (format + lint + related LWC tests).
+- Pre-commit commands are defined via Husky + `lint-staged` in `package.json` (format + lint + related LWC tests); ensure a Husky pre-commit hook exists in the active branch/repo setup.
 - `.forceignore` excludes test folders like `**/__tests__/**` from source push/pull flows; keep deploy intent in mind when adding test assets.
 
 ## Integration Points and Boundaries
