@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 concurrency:
   group: pr-check-${{ github.ref }}
   cancel-in-progress: true
@@ -34,3 +37,121 @@ jobs:
 
       - name: LWC unit tests (CI)
         run: npm run test:lwc:ci
+
+  salesforce-validate:
+    name: Salesforce Metadata Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Salesforce metadata changes
+        id: detect
+        env:
+          SFDX_METADATA_DIR: ${{ vars.SFDX_METADATA_DIR }}
+        run: |
+          set -euo pipefail
+
+          metadata_dir="${SFDX_METADATA_DIR:-force-app}"
+          artifacts_dir=".artifacts/salesforce-validate"
+          changed_files_file="$artifacts_dir/changed-files.txt"
+
+          mkdir -p "$artifacts_dir"
+          git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" | tee "$changed_files_file"
+
+          has_metadata_root=false
+          if [ -d "$metadata_dir" ]; then
+            has_metadata_root=true
+          fi
+
+          has_metadata_changes=false
+          if grep -Eq "^${metadata_dir}/" "$changed_files_file"; then
+            has_metadata_changes=true
+          fi
+
+          echo "metadata_dir=$metadata_dir" >> "$GITHUB_OUTPUT"
+          echo "has_metadata_root=$has_metadata_root" >> "$GITHUB_OUTPUT"
+          echo "has_metadata_changes=$has_metadata_changes" >> "$GITHUB_OUTPUT"
+
+      - name: Skip when no Salesforce metadata validation is needed
+        if: steps.detect.outputs.has_metadata_changes != 'true' || steps.detect.outputs.has_metadata_root != 'true'
+        run: |
+          if [ "${{ steps.detect.outputs.has_metadata_changes }}" != "true" ]; then
+            echo "No Salesforce metadata changes detected under ${{ steps.detect.outputs.metadata_dir }}. Skipping validate-only check."
+          else
+            echo "Salesforce metadata root ${{ steps.detect.outputs.metadata_dir }} is missing in this branch. Skipping validate-only check."
+          fi
+
+      - name: Ensure Salesforce auth secret is configured
+        if: steps.detect.outputs.has_metadata_changes == 'true' && steps.detect.outputs.has_metadata_root == 'true'
+        env:
+          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SF_AUTH_URL:-}" ]; then
+            echo "::error title=Missing Salesforce auth secret::Set the repository secret SF_AUTH_URL to run metadata validation in CI."
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        if: steps.detect.outputs.has_metadata_changes == 'true' && steps.detect.outputs.has_metadata_root == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Salesforce CLI
+        if: steps.detect.outputs.has_metadata_changes == 'true' && steps.detect.outputs.has_metadata_root == 'true'
+        run: |
+          set -euo pipefail
+          npm install --global @salesforce/cli
+          sf --version
+
+      - name: Authenticate Salesforce org
+        if: steps.detect.outputs.has_metadata_changes == 'true' && steps.detect.outputs.has_metadata_root == 'true'
+        env:
+          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        run: |
+          set -euo pipefail
+
+          auth_file="$(mktemp)"
+          trap 'rm -f "$auth_file"' EXIT
+          printf '%s' "$SF_AUTH_URL" > "$auth_file"
+
+          sf org login sfdx-url \
+            --sfdx-url-file "$auth_file" \
+            --alias ci-validate-org \
+            --set-default
+
+      - name: Run Salesforce metadata validate-only
+        if: steps.detect.outputs.has_metadata_changes == 'true' && steps.detect.outputs.has_metadata_root == 'true'
+        env:
+          SF_VALIDATE_WAIT_MINUTES: ${{ vars.SF_VALIDATE_WAIT_MINUTES }}
+        run: |
+          set -euo pipefail
+
+          metadata_dir="${{ steps.detect.outputs.metadata_dir }}"
+          results_dir=".artifacts/salesforce-validate/results"
+          log_file=".artifacts/salesforce-validate/validate.log"
+          wait_minutes="${SF_VALIDATE_WAIT_MINUTES:-30}"
+
+          mkdir -p "$results_dir"
+
+          sf project deploy validate \
+            --source-dir "$metadata_dir" \
+            --target-org ci-validate-org \
+            --wait "$wait_minutes" \
+            --results-dir "$results_dir" \
+            --verbose 2>&1 | tee "$log_file"
+
+      - name: Upload Salesforce validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: salesforce-validate-${{ github.run_id }}
+          path: .artifacts/salesforce-validate
+          if-no-files-found: ignore

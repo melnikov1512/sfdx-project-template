@@ -42,6 +42,7 @@
   ```bash
   npm run validate
   ```
+- PR CI also runs `.github/workflows/pr-check.yml`; when a PR changes files under `force-app/` (or `SFDX_METADATA_DIR`), it adds a Salesforce metadata validate-only gate.
 
 ## Project-Specific Conventions
 - Use **ESLint flat config** (`eslint.config.js`), not legacy `.eslintrc*`.
@@ -49,11 +50,13 @@
 - Jest ignores `.localdevserver` (`jest.config.js`); do not rely on files there in tests.
 - Pre-commit commands are defined via Husky + `lint-staged` in `package.json` (format + lint + related LWC tests); ensure a Husky pre-commit hook exists in the active branch/repo setup.
 - `.forceignore` excludes test folders like `**/__tests__/**` from source push/pull flows; keep deploy intent in mind when adding test assets.
+- GitHub Actions metadata validation expects repository secret `SF_AUTH_URL`; optional repository variables `SFDX_METADATA_DIR` and `SF_VALIDATE_WAIT_MINUTES` tune the check without code changes.
 
 ## Integration Points and Boundaries
 - Salesforce org interaction is expected through SFDX/SF CLI workflows (repository includes `sfdx-project.json` + scratch definition).
 - API version is pinned to `66.0` (`sfdx-project.json`); align new metadata with this target unless intentionally upgraded.
 - Ignore local IDE/state directories in automation (`.sf/`, `.sfdx/`, `.illuminatedCloud/`, `IlluminatedCloud/`).
+- CI metadata validation authenticates with `sf org login sfdx-url`; keep auth material in GitHub secrets only and do not assume local `.sf/` or `.sfdx/` state exists on runners.
 
 ## Agent Operating Guidance for This Repo
 - Before editing, inspect `force-app/main/default/` to detect which metadata types are present in the current branch.
