@@ -5,6 +5,7 @@
   "description": "Salesforce App",
   "scripts": {
     "lint": "eslint \"force-app/main/default/**/{aura,lwc}/**/*.js\" --no-error-on-unmatched-pattern",
+    "lint:apex": "sh -c 'if ! command -v sf >/dev/null 2>&1; then echo \"Skipping Apex analysis: sf CLI not found\"; exit 0; fi; if ! sf plugins list | grep -q code-analyzer; then echo \"Installing @salesforce/sfdx-scanner plugin...\"; sf plugins install @salesforce/sfdx-scanner --force; fi; mkdir -p .artifacts/code-analysis && sf scanner run --target force-app --format sarif --outfile .artifacts/code-analysis/results.sarif || true'",
     "format": "npm run prettier",
     "test": "npm run test:lwc:ci && npm run test:apex",
     "test:lwc": "sfdx-lwc-jest",
