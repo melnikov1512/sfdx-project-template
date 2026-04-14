@@ -1,20 +1,20 @@
 # Salesforce DX Project Template
 
-`sfdx-project-template` - минимальный шаблон Salesforce DX проекта с Node-инструментами качества для Aura/LWC.
+`sfdx-project-template` is a minimal Salesforce DX project template with Node-based quality tooling for Aura/LWC.
 
-В репозитории:
+This repository includes:
 
-- задан package directory `force-app` в `sfdx-project.json`;
-- настроены ESLint (flat config), Prettier и `@salesforce/sfdx-lwc-jest`;
-- подготовлен scratch org baseline в `config/project-scratch-def.json`;
-- бизнес-метаданные пока не добавлены.
+- package directory `force-app` configured in `sfdx-project.json`;
+- ESLint (flat config), Prettier, and `@salesforce/sfdx-lwc-jest` configured;
+- scratch org baseline prepared in `config/project-scratch-def.json`;
+- no business metadata added yet.
 
 ## Current Project Layout
 
-- `sfdx-project.json` - SFDX-конфигурация проекта (`sourceApiVersion`: `66.0`)
-- `config/project-scratch-def.json` - базовая конфигурация scratch org
-- `eslint.config.js` - правила lint для Aura/LWC/Jest mocks
-- `jest.config.js` - конфигурация LWC Jest
+- `sfdx-project.json` - SFDX project configuration (`sourceApiVersion`: `66.0`)
+- `config/project-scratch-def.json` - base scratch org configuration
+- `eslint.config.js` - lint rules for Aura/LWC/Jest mocks
+- `jest.config.js` - LWC Jest configuration
 - `package.json` - npm scripts, lint-staged, dev tooling
 
 ## Quick Start
@@ -26,7 +26,7 @@
 - (Optional for Apex validation) authenticated default target org
 - (For GitHub Actions metadata validation) repository secret `SF_AUTH_URL`
 
-Проверка доступности org:
+Check org availability:
 
 ```bash
 sf org display --json
@@ -38,80 +38,91 @@ npm install
 
 ## Daily Development Commands
 
-Lint JS для Aura/LWC:
+Lint JS for Aura/LWC:
 
 ```bash
 npm run lint
 ```
 
-Полный тестовый прогон (LWC Jest + Apex tests при доступном org):
+Full test run (LWC Jest + Apex tests when an org is available):
 
 ```bash
 npm run test
 ```
 
-Форматирование файлов:
+Format files:
 
 ```bash
 npm run prettier
 ```
 
-Полная локальная проверка перед PR:
+Full local validation before a PR:
 
 ```bash
 npm run validate
 ```
 
-`npm run validate` выполняет `lint`, `prettier:verify`, `test:lwc:ci` и затем `test:apex`.
-Apex-часть пропускается без падения пайплайна шаблона, если:
+`npm run validate` runs `lint`, `prettier:verify`, `test:lwc:ci`, and then `test:apex`.
+The Apex step is skipped gracefully (without failing the template pipeline) if:
 
-- в `force-app/main/default/classes` нет локальных Apex test-классов (`@isTest`);
-- `sf` CLI не установлен;
-- default target org не настроен.
+- there are no local Apex test classes (`@isTest`) in `force-app/main/default/classes`;
+- `sf` CLI is not installed;
+- a default target org is not configured.
 
 ## CI Expectations
 
-PR workflow `.github/workflows/pr-check.yml` всегда запускает:
+PR workflow `.github/workflows/pr-check.yml` always runs:
 
 - `npm run lint`
 - `npm run prettier:verify`
 - `npm run test:lwc:ci`
 
-Если PR меняет файлы под `force-app/` (или под каталогом из repository variable `SFDX_METADATA_DIR`), workflow дополнительно запускает Salesforce metadata validate-only check.
+If a PR changes files under `force-app/` (or under the directory defined by repository variable `SFDX_METADATA_DIR`), the workflow also runs a Salesforce metadata validate-only check.
 
-Для этого check нужны:
+This check requires:
 
-- repository secret `SF_AUTH_URL` с SFDX auth URL для CI org;
-- workflow использует фиксированное ожидание `--wait 30`, синхронизированное с `timeout-minutes: 30` у job.
+- repository secret `SF_AUTH_URL` containing an SFDX auth URL for the CI org;
+- the workflow uses a fixed wait value `--wait 30`, aligned with job `timeout-minutes: 30`.
 
-Поведение metadata check:
+Metadata check behavior:
 
-- если в PR нет изменений под metadata root, check завершается без ошибки и пишет skip message;
-- если metadata root еще не создан в ветке, check тоже skip-ится без ложного падения шаблона;
-- если metadata changes есть, но `SF_AUTH_URL` не задан, PR check падает с явной ошибкой;
-- логи и список измененных файлов сохраняются в GitHub Actions artifact `salesforce-validate-<run_id>`.
+- if there are no changes under the metadata root in the PR, the check completes successfully and logs a skip message;
+- if the metadata root does not exist in the branch yet, the check is also skipped without a false template failure;
+- if metadata changes exist but `SF_AUTH_URL` is not set, the PR check fails with an explicit error;
+- logs and the list of changed files are stored in the GitHub Actions artifact `salesforce-validate-<run_id>`.
+
+## Onboarding Runbook
+
+For common local development and CI issues, use `RUNBOOK.md`.
+
+The runbook covers:
+
+- bootstrap/dependency installation;
+- lint and LWC test behavior in an empty template;
+- reasons for graceful skip in `npm run test:apex`;
+- diagnostics for failure and skip scenarios of `Salesforce Metadata Validate` in PRs.
 
 ## Additional Test Modes
 
-Только LWC unit tests (Jest):
+LWC unit tests only (Jest):
 
 ```bash
 npm run test:lwc
 ```
 
-Apex tests (если доступен org):
+Apex tests (if an org is available):
 
 ```bash
 npm run test:apex
 ```
 
-CI-режим тестов:
+CI test mode:
 
 ```bash
 npm run test:lwc:ci
 ```
 
-Watch-режим:
+Watch mode:
 
 ```bash
 npm run test:lwc:watch
@@ -125,7 +136,7 @@ npm run test:lwc:coverage
 
 ## Notes for Template Usage
 
-- Источник для Salesforce metadata - `force-app/` (по `sfdx-project.json`).
-- При добавлении первой метадаты создайте стандартный путь `force-app/main/default/`.
-- Для работы со scratch org используйте `config/project-scratch-def.json` как базовый definition file.
-- Для CI metadata validation используйте отдельный low-privilege org user и храните его auth URL только в `SF_AUTH_URL` secret.
+- Salesforce metadata source root is `force-app/` (per `sfdx-project.json`).
+- When adding the first metadata, create the standard path `force-app/main/default/`.
+- For scratch org usage, use `config/project-scratch-def.json` as the base definition file.
+- For CI metadata validation, use a dedicated low-privilege org user and store its auth URL only in the `SF_AUTH_URL` secret.
