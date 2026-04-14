@@ -166,7 +166,6 @@ Job `Salesforce Code Analysis` runs in PR check and reports findings in SARIF fo
 - **Real findings** (CRUD/FLS, SOQL injection, best practices, PMD/ESLint Salesforce rules):
   - Review the `code-analysis-<run_id>` artifact (`results.sarif`).
   - Fix the underlying issue and re-run checks.
-  
 - **False positive** (rule too broad, context-specific safety, intentional pattern):
   - Document the reason and severity (e.g., "intentional: test data factory").
   - Follow Section 11 (time-boxed exception) if immediate fix is not possible.
