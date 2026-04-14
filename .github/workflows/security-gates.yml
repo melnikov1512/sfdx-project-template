@@ -1,0 +1,128 @@
+name: Security Gates
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: Secret Scan (Fail on Findings)
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="8.28.0"
+          archive="gitleaks_${version}_linux_x64.tar.gz"
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${version}/${archive}"
+
+          curl -fsSL "$url" -o /tmp/$archive
+          tar -xzf /tmp/$archive -C /tmp gitleaks
+          install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run Gitleaks
+        id: gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifacts_dir=".artifacts/security"
+          report_path="$artifacts_dir/gitleaks.sarif"
+          mkdir -p "$artifacts_dir"
+
+          set +e
+          gitleaks git --redact --no-banner --report-format sarif --report-path "$report_path" .
+          gitleaks_exit=$?
+          set -e
+
+          # The enforcement step consumes this exact exit code.
+          echo "exit_code=$gitleaks_exit" >> "$GITHUB_OUTPUT"
+
+      - name: Enforce secret scan fail policy
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ steps.gitleaks.outputs.exit_code }}" != "0" ]; then
+            echo "::error title=Secret scan failed::Potential secret exposure detected. Per policy, secret-scan findings block merge until remediated or covered by an approved time-boxed exception (RUNBOOK.md Section 11)."
+            exit 1
+          fi
+
+      - name: Upload secret scan artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: secret-scan-${{ github.run_id }}
+          path: .artifacts/security/gitleaks.sarif
+          if-no-files-found: ignore
+
+  dependency-audit:
+    name: Dependency Audit (High/Critical Gate)
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit with fail policy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifacts_dir=".artifacts/security"
+          audit_file="$artifacts_dir/npm-audit.json"
+          mkdir -p "$artifacts_dir"
+
+          set +e
+          npm audit --audit-level=high --json > "$audit_file"
+          audit_exit=$?
+          set -e
+
+          node -e "const fs=require('fs');const p=process.argv[1];const data=JSON.parse(fs.readFileSync(p,'utf8'));const v=(data.metadata&&data.metadata.vulnerabilities)||{};console.log('npm audit summary => critical:',v.critical||0,'high:',v.high||0,'moderate:',v.moderate||0,'low:',v.low||0);" "$audit_file"
+
+          if [ "$audit_exit" -ne 0 ]; then
+            echo "::error title=Dependency audit failed::High/Critical vulnerabilities detected. See artifact npm-audit.json and follow RUNBOOK.md triage/exceptions process."
+            exit "$audit_exit"
+          fi
+
+      - name: Upload dependency audit artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dependency-audit-${{ github.run_id }}
+          path: .artifacts/security/npm-audit.json
+          if-no-files-found: ignore

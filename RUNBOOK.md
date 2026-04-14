@@ -163,3 +163,74 @@ To speed up diagnostics, include:
 - exact command and full output;
 - Node/npm versions (`node -v`, `npm -v`);
 - for CI issues: a run link and log from artifact `salesforce-validate-<run_id>`.
+
+---
+
+## 9) Security gate fails on secret scanning
+
+### Symptom
+
+Job `Secret Scan (Fail on Findings)` fails in `.github/workflows/security-gates.yml`.
+
+### Actions
+
+1. Open artifact `secret-scan-<run_id>` and review `gitleaks.sarif`.
+2. Confirm whether the finding is a real secret (token, key, password, private key) or false positive.
+3. If real:
+   - immediately rotate/revoke the exposed credential;
+   - remove secret from repository history if required by policy;
+   - push a remediation commit and re-run checks.
+4. If false positive, follow Section 11 (time-boxed exception) and add an owner for cleanup.
+
+### SLA
+
+- `critical`: remediate or block merge within 4 hours.
+- `high`: remediate or block merge within 1 business day.
+
+### Fail policy
+
+- Any secret-scan finding in `.github/workflows/security-gates.yml` fails CI on `pull_request` and `push` to `main`.
+- Merge is blocked until remediation is merged or a documented, time-boxed exception is approved (Section 11).
+
+---
+
+## 10) Security gate fails on dependency audit
+
+### Symptom
+
+Job `Dependency Audit (High/Critical Gate)` fails due to `npm audit --audit-level=high`.
+
+### Actions
+
+1. Open artifact `dependency-audit-<run_id>` and inspect `npm-audit.json`.
+2. Identify direct vs transitive vulnerable packages.
+3. Apply the safest upgrade path (`npm update`, explicit version bump, or dependency replacement).
+4. Re-run CI and confirm no `high`/`critical` findings remain.
+5. If no safe fix exists yet, follow Section 11 and create a time-boxed exception.
+
+### Fail policy
+
+- Any `high` or `critical` dependency vulnerability fails CI.
+- `moderate`/`low` do not block merge by default, but should be triaged.
+
+---
+
+## 11) Exception lifecycle (time-boxed risk acceptance)
+
+Use exceptions only when an immediate safe remediation is not available.
+
+### Required fields
+
+- `owner`: accountable engineer.
+- `reason`: why the exception is required.
+- `scope`: affected workflow/finding/package/path.
+- `expiration_date`: hard deadline for removal.
+- `rollback_trigger`: condition that cancels the exception immediately (for example, fix released, active exploit, policy update).
+
+### Process
+
+1. Create an issue with all required fields and link CI run evidence.
+2. Obtain approval from the code owner/security reviewer.
+3. Apply the minimum temporary bypass needed.
+4. Track expiration and remove the bypass before `expiration_date`.
+5. Close the issue only after cleanup is merged and CI is green without the bypass.
