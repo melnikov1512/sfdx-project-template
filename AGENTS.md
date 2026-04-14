@@ -43,6 +43,7 @@
   npm run validate
   ```
 - PR CI also runs `.github/workflows/pr-check.yml`; when a PR changes files under `force-app/` (or `SFDX_METADATA_DIR`), it adds a Salesforce metadata validate-only gate.
+- Security CI runs `.github/workflows/security-gates.yml` with secret scanning on `pull_request` + `push: main` and dependency audit on `pull_request` + `schedule`.
 
 ## Project-Specific Conventions
 - Use **ESLint flat config** (`eslint.config.js`), not legacy `.eslintrc*`.
@@ -57,6 +58,7 @@
 - API version is pinned to `66.0` (`sfdx-project.json`); align new metadata with this target unless intentionally upgraded.
 - Ignore local IDE/state directories in automation (`.sf/`, `.sfdx/`, `.illuminatedCloud/`, `IlluminatedCloud/`).
 - CI metadata validation authenticates with `sf org login sfdx-url`; keep auth material in GitHub secrets only and do not assume local `.sf/` or `.sfdx/` state exists on runners.
+- Security incidents and temporary risk acceptances must follow `RUNBOOK.md` triage/exception process (owner + reason + expiration + rollback trigger).
 
 ## Agent Operating Guidance for This Repo
 - Before editing, inspect `force-app/main/default/` to detect which metadata types are present in the current branch.
