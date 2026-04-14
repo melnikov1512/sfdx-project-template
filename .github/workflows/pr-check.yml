@@ -38,6 +38,70 @@ jobs:
       - name: LWC unit tests (CI)
         run: npm run test:lwc:ci
 
+  code-analysis:
+    name: Salesforce Code Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Salesforce CLI
+        run: |
+          set -euo pipefail
+          npm install --global @salesforce/cli
+          sf --version
+
+      - name: Install code-analyzer plugin
+        run: |
+          set -euo pipefail
+          if ! sf plugins list | grep -q code-analyzer; then
+            echo "Installing @salesforce/sfdx-scanner plugin..."
+            sf plugins install @salesforce/sfdx-scanner --force
+          else
+            echo "code-analyzer plugin already installed"
+          fi
+
+      - name: Check if Salesforce metadata exists
+        id: check-metadata
+        run: |
+          if [ -d "force-app" ]; then
+            echo "has_metadata=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_metadata=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Salesforce code analysis
+        if: steps.check-metadata.outputs.has_metadata == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/code-analysis
+          sf scanner run \
+            --target force-app \
+            --format sarif \
+            --outfile .artifacts/code-analysis/results.sarif \
+            || true
+
+      - name: Skip code analysis when no metadata
+        if: steps.check-metadata.outputs.has_metadata != 'true'
+        run: |
+          echo "No Salesforce metadata found in force-app. Skipping code analysis."
+          mkdir -p .artifacts/code-analysis
+
+      - name: Upload code analysis artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: code-analysis-${{ github.run_id }}
+          path: .artifacts/code-analysis
+          if-no-files-found: ignore
+
   salesforce-validate:
     name: Salesforce Metadata Validate
     runs-on: ubuntu-latest

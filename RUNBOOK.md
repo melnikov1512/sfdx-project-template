@@ -155,7 +155,40 @@ The command runs:
 
 ---
 
-## 8) What to include in a bug report
+## 8) Code Analysis findings: severity, false positives and exceptions
+
+### Symptom
+
+Job `Salesforce Code Analysis` runs in PR check and reports findings in SARIF format or logs.
+
+### Common causes and handling
+
+- **Real findings** (CRUD/FLS, SOQL injection, best practices, PMD/ESLint Salesforce rules):
+  - Review the `code-analysis-<run_id>` artifact (`results.sarif`).
+  - Fix the underlying issue and re-run checks.
+- **False positive** (rule too broad, context-specific safety, intentional pattern):
+  - Document the reason and severity (e.g., "intentional: test data factory").
+  - Follow Section 11 (time-boxed exception) if immediate fix is not possible.
+
+### Severity levels and policy
+
+- `error`: blocks merge in CI; must be fixed before PR is approved.
+- `warning`: advisory; visible in PR artifacts but does not block merge by default.
+- `note`/`info`: informational; no action required.
+
+### Local code analysis
+
+Run analysis locally before pushing:
+
+```bash
+npm run lint:apex
+```
+
+This installs the code-analyzer plugin (if needed) and outputs results to `.artifacts/code-analysis/results.sarif`.
+
+---
+
+## 9) What to include in a bug report
 
 To speed up diagnostics, include:
 
@@ -166,7 +199,20 @@ To speed up diagnostics, include:
 
 ---
 
-## 9) Security gate fails on secret scanning
+## 9) What to include in a bug report
+
+To speed up diagnostics, include:
+
+- reproduction steps;
+- exact command and full output;
+- Node/npm versions (`node -v`, `npm -v`);
+- for CI issues: a run link and log from artifact `salesforce-validate-<run_id>` or `code-analysis-<run_id>`.
+
+---
+
+## 10) Security gate fails on secret scanning
+
+## 10) Security gate fails on secret scanning
 
 ### Symptom
 
@@ -194,7 +240,7 @@ Job `Secret Scan (Fail on Findings)` fails in `.github/workflows/security-gates.
 
 ---
 
-## 10) Security gate fails on dependency audit
+## 11) Security gate fails on dependency audit
 
 ### Symptom
 
@@ -215,7 +261,28 @@ Job `Dependency Audit (High/Critical Gate)` fails due to `npm audit --audit-leve
 
 ---
 
-## 11) Exception lifecycle (time-boxed risk acceptance)
+## 11) Security gate fails on dependency audit
+
+### Symptom
+
+Job `Dependency Audit (High/Critical Gate)` fails due to `npm audit --audit-level=high`.
+
+### Actions
+
+1. Open artifact `dependency-audit-<run_id>` and inspect `npm-audit.json`.
+2. Identify direct vs transitive vulnerable packages.
+3. Apply the safest upgrade path (`npm update`, explicit version bump, or dependency replacement).
+4. Re-run CI and confirm no `high`/`critical` findings remain.
+5. If no safe fix exists yet, follow Section 11 and create a time-boxed exception.
+
+### Fail policy
+
+- Any `high` or `critical` dependency vulnerability fails CI.
+- `moderate`/`low` do not block merge by default, but should be triaged.
+
+---
+
+## 12) Exception lifecycle (time-boxed risk acceptance)
 
 Use exceptions only when an immediate safe remediation is not available.
 

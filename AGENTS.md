@@ -11,6 +11,7 @@
   - `eslint.config.js` for Aura/LWC linting profiles
   - `jest.config.js` for LWC unit tests
   - `package.json` for scripts, hooks, and formatting
+  - `@salesforce/sfdx-scanner` (code-analyzer plugin) for Salesforce-specific SAST (Apex, LWC, Aura, metadata)
 - Scratch org baseline is defined in `config/project-scratch-def.json`.
 
 ## Critical Workflows (Use These First)
@@ -42,7 +43,12 @@
   ```bash
   npm run validate
   ```
+- Run Salesforce code analysis locally (Apex/LWC/Aura SAST):
+  ```bash
+  npm run lint:apex
+  ```
 - PR CI also runs `.github/workflows/pr-check.yml`; when a PR changes files under `force-app/` (or `SFDX_METADATA_DIR`), it adds a Salesforce metadata validate-only gate.
+- Code analysis job runs on every PR and scans Apex, LWC, Aura, and metadata using `sf code-analyzer` (SARIF output, graceful skip if no metadata).
 - Security CI runs `.github/workflows/security-gates.yml` with secret scanning on `pull_request` + `push: main` and dependency audit on `pull_request` + `schedule`.
 
 ## Project-Specific Conventions
