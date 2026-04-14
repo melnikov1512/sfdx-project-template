@@ -77,6 +77,13 @@ PR workflow `.github/workflows/pr-check.yml` always runs:
 - `npm run prettier:verify`
 - `npm run test:lwc:ci`
 
+Security workflow `.github/workflows/security-gates.yml` runs:
+
+- secret scanning on `pull_request` and `push` to `main`;
+- dependency audit on `pull_request` and weekly `schedule`;
+- fail policy: any secret-scan finding fails the job, and dependency findings with severity `high` or `critical` fail the job;
+- approved, time-boxed exceptions must follow `RUNBOOK.md` Section 11 with owner, reason, and expiration.
+
 If a PR changes files under `force-app/` (or under the directory defined by repository variable `SFDX_METADATA_DIR`), the workflow also runs a Salesforce metadata validate-only check.
 
 This check requires:
@@ -101,6 +108,7 @@ The runbook covers:
 - lint and LWC test behavior in an empty template;
 - reasons for graceful skip in `npm run test:apex`;
 - diagnostics for failure and skip scenarios of `Salesforce Metadata Validate` in PRs.
+- security triage and exception lifecycle for secret scan and dependency audit findings.
 
 ## Additional Test Modes
 
