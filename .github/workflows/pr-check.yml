@@ -129,22 +129,19 @@ jobs:
 
       - name: Run Salesforce metadata validate-only
         if: steps.detect.outputs.has_metadata_changes == 'true' && steps.detect.outputs.has_metadata_root == 'true'
-        env:
-          SF_VALIDATE_WAIT_MINUTES: ${{ vars.SF_VALIDATE_WAIT_MINUTES }}
         run: |
           set -euo pipefail
 
           metadata_dir="${{ steps.detect.outputs.metadata_dir }}"
           results_dir=".artifacts/salesforce-validate/results"
           log_file=".artifacts/salesforce-validate/validate.log"
-          wait_minutes="${SF_VALIDATE_WAIT_MINUTES:-30}"
 
           mkdir -p "$results_dir"
 
           sf project deploy validate \
             --source-dir "$metadata_dir" \
             --target-org ci-validate-org \
-            --wait "$wait_minutes" \
+            --wait 30 \
             --results-dir "$results_dir" \
             --verbose 2>&1 | tee "$log_file"
 

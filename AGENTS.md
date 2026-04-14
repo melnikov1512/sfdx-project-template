@@ -50,7 +50,7 @@
 - Jest ignores `.localdevserver` (`jest.config.js`); do not rely on files there in tests.
 - Pre-commit commands are defined via Husky + `lint-staged` in `package.json` (format + lint + related LWC tests); ensure a Husky pre-commit hook exists in the active branch/repo setup.
 - `.forceignore` excludes test folders like `**/__tests__/**` from source push/pull flows; keep deploy intent in mind when adding test assets.
-- GitHub Actions metadata validation expects repository secret `SF_AUTH_URL`; optional repository variables `SFDX_METADATA_DIR` and `SF_VALIDATE_WAIT_MINUTES` tune the check without code changes.
+- GitHub Actions metadata validation expects repository secret `SF_AUTH_URL`; optional repository variable `SFDX_METADATA_DIR` changes the metadata root without code changes.
 
 ## Integration Points and Boundaries
 - Salesforce org interaction is expected through SFDX/SF CLI workflows (repository includes `sfdx-project.json` + scratch definition).

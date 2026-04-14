@@ -82,7 +82,7 @@ PR workflow `.github/workflows/pr-check.yml` всегда запускает:
 Для этого check нужны:
 
 - repository secret `SF_AUTH_URL` с SFDX auth URL для CI org;
-- optional repository variable `SF_VALIDATE_WAIT_MINUTES` для таймаута ожидания CLI.
+- workflow использует фиксированное ожидание `--wait 30`, синхронизированное с `timeout-minutes: 30` у job.
 
 Поведение metadata check:
 
