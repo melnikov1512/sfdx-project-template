@@ -82,11 +82,42 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .artifacts/code-analysis
+
+          set +e
           sf scanner run \
             --target force-app \
             --format sarif \
-            --outfile .artifacts/code-analysis/results.sarif \
-            || true
+            --outfile .artifacts/code-analysis/results.sarif
+          scanner_exit=$?
+          set -e
+
+          # Parse SARIF and fail if any HIGH (severity 2) or CRITICAL (severity 1) finding exists.
+          # Severity mapping: 1=Critical, 2=High, 3=Medium, 4=Low, 5=Info
+          if [ -f ".artifacts/code-analysis/results.sarif" ]; then
+            node -e "
+              const fs = require('fs');
+              const sarif = JSON.parse(fs.readFileSync('.artifacts/code-analysis/results.sarif', 'utf8'));
+              let blocking = 0;
+              for (const run of (sarif.runs || [])) {
+                for (const result of (run.results || [])) {
+                  const level = result.level || '';
+                  // SARIF levels: 'error' = HIGH/CRITICAL, 'warning' = MEDIUM
+                  if (level === 'error') {
+                    blocking++;
+                    console.error('BLOCKING finding:', result.ruleId, '-', (result.message || {}).text || '');
+                  }
+                }
+              }
+              if (blocking > 0) {
+                console.error('::error title=Salesforce Code Analysis failed::' + blocking + ' error-level finding(s) detected. Fix before merging. See artifact code-analysis-\${{ github.run_id }}/results.sarif and RUNBOOK.md Section 8.');
+                process.exit(1);
+              }
+              console.log('No error-level findings. Code analysis passed.');
+            "
+          fi
+
+          # Also propagate non-zero exit from the scanner itself (e.g. tool crash).
+          exit $scanner_exit
 
       - name: Skip code analysis when no metadata
         if: steps.check-metadata.outputs.has_metadata != 'true'

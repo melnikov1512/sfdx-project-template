@@ -168,13 +168,21 @@ Job `Salesforce Code Analysis` runs in PR check and reports findings in SARIF fo
   - Fix the underlying issue and re-run checks.
 - **False positive** (rule too broad, context-specific safety, intentional pattern):
   - Document the reason and severity (e.g., "intentional: test data factory").
-  - Follow Section 11 (time-boxed exception) if immediate fix is not possible.
+  - Follow Section 12 (time-boxed exception) if immediate fix is not possible.
 
-### Severity levels and policy
+### Severity thresholds and merge policy
 
-- `error`: blocks merge in CI; must be fixed before PR is approved.
-- `warning`: advisory; visible in PR artifacts but does not block merge by default.
-- `note`/`info`: informational; no action required.
+The following table defines the enforced security severity thresholds across all CI security jobs.
+
+| Tool                                            | SARIF level / audit level      | Merge policy                                          |
+| ----------------------------------------------- | ------------------------------ | ----------------------------------------------------- |
+| **CodeQL** (`codeql.yml`)                       | `error` (HIGH / CRITICAL CWEs) | ❌ Blocks merge                                       |
+| **CodeQL** (`codeql.yml`)                       | `warning` (MEDIUM)             | ⚠️ Advisory — visible in Security tab, does not block |
+| **Salesforce Code Analyzer** (`pr-check.yml`)   | `error` (HIGH / CRITICAL)      | ❌ Blocks merge                                       |
+| **Salesforce Code Analyzer** (`pr-check.yml`)   | `warning` (MEDIUM)             | ⚠️ Advisory — artifact only, does not block           |
+| **Gitleaks secret scan** (`security-gates.yml`) | any finding                    | ❌ Blocks merge                                       |
+| **npm audit** (`security-gates.yml`)            | `high` / `critical`            | ❌ Blocks merge                                       |
+| **npm audit** (`security-gates.yml`)            | `moderate` / `low`             | ⚠️ Advisory — triage recommended                      |
 
 ### Local code analysis
 
@@ -185,6 +193,15 @@ npm run lint:apex
 ```
 
 This installs the code-analyzer plugin (if needed) and outputs results to `.artifacts/code-analysis/results.sarif`.
+
+### CodeQL findings
+
+CodeQL findings are also visible in:
+
+- **GitHub Security tab** → Code scanning alerts (requires `security-events: write` permission).
+- **PR Checks** → annotations on diff lines where findings occur.
+
+To dismiss a CodeQL alert as a false positive, use the Security tab UI and document the reason; this does not bypass CI but suppresses the alert.
 
 ---
 
@@ -279,6 +296,34 @@ Job `Dependency Audit (High/Critical Gate)` fails due to `npm audit --audit-leve
 
 - Any `high` or `critical` dependency vulnerability fails CI.
 - `moderate`/`low` do not block merge by default, but should be triaged.
+
+---
+
+## 13) CodeQL SAST fails in CI
+
+### Symptom
+
+Job `CodeQL Analysis (JavaScript)` fails in `.github/workflows/codeql.yml`.
+
+### Actions
+
+1. Open the **Security** tab → **Code scanning alerts** to view annotated findings.
+2. Review the finding category (CWE ID, rule name) and the affected file/line in the PR diff.
+3. If real:
+   - Fix the root cause (e.g., sanitise input, remove insecure pattern).
+   - Re-push and wait for re-analysis.
+4. If false positive:
+   - Dismiss via the Security tab UI (requires write access).
+   - Document reason in the dismissal form.
+   - No PR block after dismissal, but keep a record per Section 12.
+
+### Fail policy
+
+| Severity        | SARIF level | Action                                                          |
+| --------------- | ----------- | --------------------------------------------------------------- |
+| Critical / High | `error`     | Blocks merge; must be fixed or dismissed with documented reason |
+| Medium          | `warning`   | Advisory; visible in Security tab, does not block merge         |
+| Low / Info      | `note`      | Informational; no action required                               |
 
 ---
 
