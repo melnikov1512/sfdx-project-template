@@ -174,15 +174,15 @@ Job `Salesforce Code Analysis` runs in PR check and reports findings in SARIF fo
 
 The following table defines the enforced security severity thresholds across all CI security jobs.
 
-| Tool | SARIF level / audit level | Merge policy |
-|------|---------------------------|--------------|
-| **CodeQL** (`codeql.yml`) | `error` (HIGH / CRITICAL CWEs) | ❌ Blocks merge |
-| **CodeQL** (`codeql.yml`) | `warning` (MEDIUM) | ⚠️ Advisory — visible in Security tab, does not block |
-| **Salesforce Code Analyzer** (`pr-check.yml`) | `error` (HIGH / CRITICAL) | ❌ Blocks merge |
-| **Salesforce Code Analyzer** (`pr-check.yml`) | `warning` (MEDIUM) | ⚠️ Advisory — artifact only, does not block |
-| **Gitleaks secret scan** (`security-gates.yml`) | any finding | ❌ Blocks merge |
-| **npm audit** (`security-gates.yml`) | `high` / `critical` | ❌ Blocks merge |
-| **npm audit** (`security-gates.yml`) | `moderate` / `low` | ⚠️ Advisory — triage recommended |
+| Tool                                            | SARIF level / audit level      | Merge policy                                          |
+| ----------------------------------------------- | ------------------------------ | ----------------------------------------------------- |
+| **CodeQL** (`codeql.yml`)                       | `error` (HIGH / CRITICAL CWEs) | ❌ Blocks merge                                       |
+| **CodeQL** (`codeql.yml`)                       | `warning` (MEDIUM)             | ⚠️ Advisory — visible in Security tab, does not block |
+| **Salesforce Code Analyzer** (`pr-check.yml`)   | `error` (HIGH / CRITICAL)      | ❌ Blocks merge                                       |
+| **Salesforce Code Analyzer** (`pr-check.yml`)   | `warning` (MEDIUM)             | ⚠️ Advisory — artifact only, does not block           |
+| **Gitleaks secret scan** (`security-gates.yml`) | any finding                    | ❌ Blocks merge                                       |
+| **npm audit** (`security-gates.yml`)            | `high` / `critical`            | ❌ Blocks merge                                       |
+| **npm audit** (`security-gates.yml`)            | `moderate` / `low`             | ⚠️ Advisory — triage recommended                      |
 
 ### Local code analysis
 
@@ -319,11 +319,11 @@ Job `CodeQL Analysis (JavaScript)` fails in `.github/workflows/codeql.yml`.
 
 ### Fail policy
 
-| Severity | SARIF level | Action |
-|----------|-------------|--------|
-| Critical / High | `error` | Blocks merge; must be fixed or dismissed with documented reason |
-| Medium | `warning` | Advisory; visible in Security tab, does not block merge |
-| Low / Info | `note` | Informational; no action required |
+| Severity        | SARIF level | Action                                                          |
+| --------------- | ----------- | --------------------------------------------------------------- |
+| Critical / High | `error`     | Blocks merge; must be fixed or dismissed with documented reason |
+| Medium          | `warning`   | Advisory; visible in Security tab, does not block merge         |
+| Low / Info      | `note`      | Informational; no action required                               |
 
 ---
 
