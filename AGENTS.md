@@ -50,6 +50,17 @@
 - PR CI also runs `.github/workflows/pr-check.yml`; when a PR changes files under `force-app/` (or `SFDX_METADATA_DIR`), it adds a Salesforce metadata validate-only gate.
 - Code analysis job runs on every PR and scans Apex, LWC, Aura, and metadata using `sf code-analyzer` (SARIF output, graceful skip if no metadata).
 - Security CI runs `.github/workflows/security-gates.yml` with secret scanning on `pull_request` + `push: main` and dependency audit on `pull_request` + `schedule`.
+- Release CI runs `.github/workflows/release.yml` on `push: main`; creates/updates a Release PR via `release-please`. Merging the Release PR creates a tag and GitHub Release.
+
+## Release & Versioning Conventions
+
+> **Release trigger:** Manual `workflow_dispatch` only — go to Actions → Release → Run workflow. No automatic release on push to main.
+- **Commit style:** All commits merged to `main` must follow [Conventional Commits](https://www.conventionalcommits.org/): `<type>[scope]: <description>`.
+- **SemVer mapping:** `fix:` → PATCH, `feat:` → MINOR, `feat!:` / `BREAKING CHANGE:` footer → MAJOR.
+- **Release automation:** `release-please` (`.github/workflows/release.yml`) creates Release PRs automatically on push to `main`. Merge the Release PR to publish a tag + GitHub Release.
+- **Hotfix branches:** Use `hotfix/<issue-id>-<description>` branched from `main`; commit with `fix:` to trigger a PATCH release. Full hotfix process in `RUNBOOK.md` Section 16.
+- **Changelog:** `CHANGELOG.md` is auto-maintained by `release-please`. Do not edit manually.
+- **Config files:** `.release-please-config.json` (changelog sections, release type) and `.release-please-manifest.json` (current version) at repo root.
 
 ## Project-Specific Conventions
 - Use **ESLint flat config** (`eslint.config.js`), not legacy `.eslintrc*`.

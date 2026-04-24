@@ -57,3 +57,4 @@ target/
 **/graphql.config.yml
 /plan/
 /docs/
+/.playwright-mcp/
