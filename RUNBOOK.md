@@ -353,11 +353,11 @@ Use exceptions only when an immediate safe remediation is not available.
 
 This project follows [Semantic Versioning 2.0.0](https://semver.org/):
 
-| Increment | When | Conventional Commit type |
-|-----------|------|--------------------------|
-| **PATCH** `x.y.Z` | Backward-compatible bug fix | `fix:` |
-| **MINOR** `x.Y.z` | New backward-compatible feature | `feat:` |
-| **MAJOR** `X.y.z` | Breaking change | `feat!:` or any type with `BREAKING CHANGE:` footer |
+| Increment         | When                            | Conventional Commit type                            |
+| ----------------- | ------------------------------- | --------------------------------------------------- |
+| **PATCH** `x.y.Z` | Backward-compatible bug fix     | `fix:`                                              |
+| **MINOR** `x.Y.z` | New backward-compatible feature | `feat:`                                             |
+| **MAJOR** `X.y.z` | Breaking change                 | `feat!:` or any type with `BREAKING CHANGE:` footer |
 
 ### Conventional Commits reference
 
@@ -373,19 +373,20 @@ All commits merged to `main` **must** follow [Conventional Commits](https://www.
 
 Common types and their changelog visibility:
 
-| Type | Changelog section | Visible |
-|------|-------------------|---------|
-| `feat` | ✨ Features | ✅ |
-| `fix` | 🐛 Bug Fixes | ✅ |
-| `perf` | ⚡ Performance | ✅ |
-| `docs` | 📚 Documentation | ✅ |
-| `revert` | ⏪ Reverts | ✅ |
-| `chore` | 🔧 Maintenance | hidden |
-| `refactor` | ♻️ Refactoring | hidden |
-| `test` | 🧪 Tests | hidden |
-| `ci` | ⚙️ CI/CD | hidden |
+| Type       | Changelog section | Visible |
+| ---------- | ----------------- | ------- |
+| `feat`     | ✨ Features       | ✅      |
+| `fix`      | 🐛 Bug Fixes      | ✅      |
+| `perf`     | ⚡ Performance    | ✅      |
+| `docs`     | 📚 Documentation  | ✅      |
+| `revert`   | ⏪ Reverts        | ✅      |
+| `chore`    | 🔧 Maintenance    | hidden  |
+| `refactor` | ♻️ Refactoring    | hidden  |
+| `test`     | 🧪 Tests          | hidden  |
+| `ci`       | ⚙️ CI/CD          | hidden  |
 
 **Breaking change syntax:**
+
 ```bash
 feat!: drop support for Node 18
 
@@ -499,13 +500,14 @@ gh pr create --base main --title "fix(<scope>): <description>" --body "Closes #<
 
 ### Hotfix SLA
 
-| Severity | Max time to release |
-|----------|---------------------|
-| Critical | 4 hours |
-| High     | 1 business day |
+| Severity | Max time to release  |
+| -------- | -------------------- |
+| Critical | 4 hours              |
+| High     | 1 business day       |
 | Medium   | Next regular release |
 
 ### Hotfix exception
 
 If the fix requires bypassing normal quality gates (e.g., emergency secret rotation), follow Section 12 (time-boxed exception) and document:
+
 - `owner`, `reason`, `scope`, `expiration_date`, `rollback_trigger`.
