@@ -346,3 +346,166 @@ Use exceptions only when an immediate safe remediation is not available.
 3. Apply the minimum temporary bypass needed.
 4. Track expiration and remove the bypass before `expiration_date`.
 5. Close the issue only after cleanup is merged and CI is green without the bypass.
+
+---
+
+## 14) SemVer versioning strategy
+
+This project follows [Semantic Versioning 2.0.0](https://semver.org/):
+
+| Increment | When | Conventional Commit type |
+|-----------|------|--------------------------|
+| **PATCH** `x.y.Z` | Backward-compatible bug fix | `fix:` |
+| **MINOR** `x.Y.z` | New backward-compatible feature | `feat:` |
+| **MAJOR** `X.y.z` | Breaking change | `feat!:` or any type with `BREAKING CHANGE:` footer |
+
+### Conventional Commits reference
+
+All commits merged to `main` **must** follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+Common types and their changelog visibility:
+
+| Type | Changelog section | Visible |
+|------|-------------------|---------|
+| `feat` | ✨ Features | ✅ |
+| `fix` | 🐛 Bug Fixes | ✅ |
+| `perf` | ⚡ Performance | ✅ |
+| `docs` | 📚 Documentation | ✅ |
+| `revert` | ⏪ Reverts | ✅ |
+| `chore` | 🔧 Maintenance | hidden |
+| `refactor` | ♻️ Refactoring | hidden |
+| `test` | 🧪 Tests | hidden |
+| `ci` | ⚙️ CI/CD | hidden |
+
+**Breaking change syntax:**
+```bash
+feat!: drop support for Node 18
+
+# or with footer:
+feat: redesign auth flow
+
+BREAKING CHANGE: SF_AUTH_URL format changed from X to Y
+```
+
+---
+
+## 15) Release process
+
+Releases are triggered **manually** via GitHub Actions workflow dispatch (`.github/workflows/release.yml`).
+
+### How to trigger a release
+
+1. Go to **Actions → Release → Run workflow** in GitHub UI.
+2. Select the branch (`main`) and fill in the inputs:
+   - **bump_type**: `patch` | `minor` | `major`
+   - **dry_run**: `true` to preview the new version without making changes (recommended before first real release)
+3. Click **Run workflow**.
+
+### What the workflow does
+
+```
+[You click "Run workflow" with bump_type=minor]
+        ↓
+npm version minor --no-git-tag-version  →  package.json: 1.0.0 → 1.1.0
+        ↓
+git commit "chore(release): v1.1.0"  →  pushed to main
+        ↓
+git tag v1.1.0  →  pushed to origin
+        ↓
+gh release create v1.1.0 --generate-notes  →  GitHub Release published
+```
+
+### Release checklist
+
+- [ ] All feature PRs for this release are merged into `main`.
+- [ ] All CI checks on `main` are green.
+- [ ] No open critical issues that should block this release.
+- [ ] Confirm the correct `bump_type` against SemVer rules (Section 14).
+- [ ] Optionally run **dry_run=true** first to verify the resulting version.
+
+### CLI equivalent (emergency / offline)
+
+If GitHub UI is unavailable:
+
+```bash
+# 1. Bump version (no git tag)
+npm version patch|minor|major --no-git-tag-version
+
+# 2. Commit and push
+git add package.json package-lock.json
+git commit -m "chore(release): vX.Y.Z"
+git push origin main
+
+# 3. Tag and push tag
+git tag vX.Y.Z
+git push origin vX.Y.Z
+
+# 4. Create GitHub Release
+gh release create vX.Y.Z --title "vX.Y.Z" --generate-notes --latest
+```
+
+---
+
+## 16) Hotfix process
+
+A hotfix addresses a critical production defect that cannot wait for the normal release cycle.
+
+### When to use a hotfix
+
+- Security vulnerability requiring immediate patch (SLA: critical = 4 h, high = 1 business day).
+- Production-blocking regression introduced in the previous release.
+
+### Hotfix workflow
+
+```
+main (vX.Y.Z — released)
+  │
+  └── hotfix/<issue-id>-<short-description>
+            │
+            │  fix: <description>  ← conventional commit
+            │
+            └── PR → main
+                        │
+                        └── release-please creates PATCH release vX.Y.(Z+1)
+```
+
+**Step-by-step:**
+
+```bash
+# 1. Create hotfix branch from main (latest tag)
+git checkout -b hotfix/<issue-id>-<description> main
+
+# 2. Implement the fix
+# ...
+
+# 3. Commit with conventional commit (fix: triggers PATCH bump)
+git commit -m "fix(<scope>): <description of critical fix>"
+
+# 4. Push and open PR against main
+git push origin hotfix/<issue-id>-<description>
+gh pr create --base main --title "fix(<scope>): <description>" --body "Closes #<issue-id>"
+
+# 5. After PR merge, release-please will open a PATCH Release PR
+# 6. Merge the Release PR → vX.Y.(Z+1) tag + GitHub Release created automatically
+```
+
+### Hotfix SLA
+
+| Severity | Max time to release |
+|----------|---------------------|
+| Critical | 4 hours |
+| High     | 1 business day |
+| Medium   | Next regular release |
+
+### Hotfix exception
+
+If the fix requires bypassing normal quality gates (e.g., emergency secret rotation), follow Section 12 (time-boxed exception) and document:
+- `owner`, `reason`, `scope`, `expiration_date`, `rollback_trigger`.
