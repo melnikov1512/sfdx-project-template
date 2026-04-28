@@ -511,3 +511,93 @@ gh pr create --base main --title "fix(<scope>): <description>" --body "Closes #<
 If the fix requires bypassing normal quality gates (e.g., emergency secret rotation), follow Section 12 (time-boxed exception) and document:
 
 - `owner`, `reason`, `scope`, `expiration_date`, `rollback_trigger`.
+
+---
+
+## 17) Deploy workflow и rollback
+
+### Обзор
+
+Deploy workflow (`.github/workflows/deploy.yml`) выполняет деплой Salesforce-метаданных в целевые окружения с обязательным validate-шагом.
+
+### Окружения
+
+| Environment  | Secrets                             | GitHub Environment Protection                                                      |
+|--------------|-------------------------------------|------------------------------------------------------------------------------------|
+| `staging`    | `SF_AUTH_URL` (environment secret)  | рекомендуется: required reviewer                                                   |
+| `production` | `SF_AUTH_URL` (environment secret)  | обязательно: required reviewer + deployment branch policy (`main`)                 |
+
+Для validate job используются репо-уровня секреты `SF_AUTH_URL_STAGING` и `SF_AUTH_URL_PRODUCTION` — это позволяет выполнять validate без ожидания аппрувала окружения.
+
+### Необходимые настройки
+
+1. В GitHub репозитории → **Settings → Environments** создать окружения `staging` и `production`.
+2. В каждом окружении добавить secret `SF_AUTH_URL` (SFDX Auth URL для целевого орга).
+3. Добавить репо-уровня секреты `SF_AUTH_URL_STAGING` и `SF_AUTH_URL_PRODUCTION` (Settings → Secrets → Actions) — используются в validate job.
+4. Для `production` включить **Required reviewers** и **Deployment branch policy: main only**.
+
+### Запуск деплоя
+
+1. **Actions → Deploy → Run workflow**.
+2. Выбрать `environment`: `staging` или `production`.
+3. Опционально: `dry_run: true` — выполнит только validate без деплоя.
+4. Дождаться прохождения `validate` job.
+5. Для `production`: подтвердить деплой в GitHub Environments UI.
+
+### Rollback
+
+Rollback выполняется путём повторного деплоя предыдущей версии.
+
+#### Шаги rollback (быстрый)
+
+1. Найти предыдущий успешный деплой в `.artifacts/deploy/deploy.log` или GitHub deployments.
+2. Определить Git-коммит/тег предыдущей рабочей версии:
+   ```bash
+   git log --oneline --decorate origin/main | head -20
+   ```
+3. Создать hotfix-ветку от рабочего тега:
+   ```bash
+   git checkout -b hotfix/<issue-id>-rollback <previous-good-tag>
+   git push origin hotfix/<issue-id>-rollback
+   ```
+4. Открыть PR в `main`, смерджить (fast-track).
+5. Запустить deploy workflow с `environment=staging` → убедиться, что работает.
+6. Запустить deploy workflow с `environment=production`.
+
+#### Шаги rollback (через sf CLI напрямую)
+
+Если нужно срочно откатить без workflow:
+
+```bash
+# Авторизоваться в орге
+sf org login sfdx-url --sfdx-url-file <auth-file> --alias rollback-org
+
+# Отменить активный деплой (если ещё in-progress)
+sf project deploy cancel --job-id <deployment-id> --target-org rollback-org
+
+# Задеплоить предыдущую версию
+git checkout <previous-good-tag>
+sf project deploy start \
+  --source-dir force-app \
+  --target-org rollback-org \
+  --wait 60
+```
+
+### SLA
+
+| Severity                       | Rollback SLA       |
+|--------------------------------|--------------------|
+| Critical (production down)     | 1 час              |
+| High (major feature broken)    | 4 часа             |
+| Medium                         | Next business day  |
+
+### Артефакты деплоя
+
+- Validate log: artifact `deploy-validate-<run_id>` → `validate.log`, `results/`
+- Deploy log: artifact `deploy-<environment>-<run_id>` → `deploy.log`, `results/`
+
+### Связанные секции
+
+- Hotfix процесс: Section 16
+- Security gate failures: Section 10–12
+- Exception lifecycle: Section 12
