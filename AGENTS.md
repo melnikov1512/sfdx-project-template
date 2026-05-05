@@ -51,6 +51,7 @@
 - Code analysis job runs on every PR and scans Apex, LWC, Aura, and metadata using `sf code-analyzer` (SARIF output, graceful skip if no metadata).
 - Security CI runs `.github/workflows/security-gates.yml` with secret scanning on `pull_request` + `push: main` and dependency audit on `pull_request` + `schedule`.
 - Release CI runs `.github/workflows/release.yml` on `push: main`; creates/updates a Release PR via `release-please`. Merging the Release PR creates a tag and GitHub Release.
+- Deploy CI runs `.github/workflows/deploy.yml` via manual `workflow_dispatch`; requires GitHub Environments (`staging`, `production`) with scoped `SF_AUTH_URL` secrets. The `production` environment must have Required Reviewers and a `main`-only branch policy. Validate gate runs before every deploy. Rollback procedure is in `RUNBOOK.md` Section 17.
 
 ## Release & Versioning Conventions
 
