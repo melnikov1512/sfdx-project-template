@@ -522,10 +522,10 @@ Deploy workflow (`.github/workflows/deploy.yml`) выполняет деплой
 
 ### Окружения
 
-| Environment  | Secrets                             | GitHub Environment Protection                                                      |
-|--------------|-------------------------------------|------------------------------------------------------------------------------------|
-| `staging`    | `SF_AUTH_URL` (environment secret)  | рекомендуется: required reviewer                                                   |
-| `production` | `SF_AUTH_URL` (environment secret)  | обязательно: required reviewer + deployment branch policy (`main`)                 |
+| Environment  | Secrets                            | GitHub Environment Protection                                      |
+| ------------ | ---------------------------------- | ------------------------------------------------------------------ |
+| `staging`    | `SF_AUTH_URL` (environment secret) | рекомендуется: required reviewer                                   |
+| `production` | `SF_AUTH_URL` (environment secret) | обязательно: required reviewer + deployment branch policy (`main`) |
 
 Для validate job используются репо-уровня секреты `SF_AUTH_URL_STAGING` и `SF_AUTH_URL_PRODUCTION` — это позволяет выполнять validate без ожидания аппрувала окружения.
 
@@ -585,11 +585,11 @@ sf project deploy start \
 
 ### SLA
 
-| Severity                       | Rollback SLA       |
-|--------------------------------|--------------------|
-| Critical (production down)     | 1 час              |
-| High (major feature broken)    | 4 часа             |
-| Medium                         | Next business day  |
+| Severity                    | Rollback SLA      |
+| --------------------------- | ----------------- |
+| Critical (production down)  | 1 час             |
+| High (major feature broken) | 4 часа            |
+| Medium                      | Next business day |
 
 ### Артефакты деплоя
 
