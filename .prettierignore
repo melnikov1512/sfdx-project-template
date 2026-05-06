@@ -3,6 +3,7 @@ IlluminatedCloud/
 .npm-cache/
 node_modules/
 .github/agents/
+.github/workflows/ai-pr-summary.yml
 AGENTS.md
 eslint.config.js
 jest.config.js

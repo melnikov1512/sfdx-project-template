@@ -86,6 +86,14 @@ Security workflow `.github/workflows/security-gates.yml` runs:
 
 If a PR changes files under `force-app/` (or under the directory defined by repository variable `SFDX_METADATA_DIR`), the workflow also runs a Salesforce metadata validate-only check.
 
+AI workflow `.github/workflows/ai-pr-summary.yml` runs on every PR opened, updated, or re-opened:
+
+- Generates a structured summary comment on the PR with **What Changed** and **What to Check Manually** sections plus a risk level badge.
+- Uses [GitHub Models](https://docs.github.com/en/github-models) API (`gpt-4o-mini`) via `github.token` — **no extra secrets required**.
+- Diff scope is restricted: lock files, `.env*`, key/cert files, and binary blobs are excluded before sending to the model.
+- If the AI call fails for any reason, the job falls back to a plain diff-stats comment — **the pipeline never breaks due to AI errors**.
+- The comment is updated (not duplicated) on force-pushes.
+
 This check requires:
 
 - repository secret `SF_AUTH_URL` containing an SFDX auth URL for the CI org;
