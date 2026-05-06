@@ -50,6 +50,12 @@
 - PR CI also runs `.github/workflows/pr-check.yml`; when a PR changes files under `force-app/` (or `SFDX_METADATA_DIR`), it adds a Salesforce metadata validate-only gate.
 - Code analysis job runs on every PR and scans Apex, LWC, Aura, and metadata using `sf code-analyzer` (SARIF output, graceful skip if no metadata).
 - Security CI runs `.github/workflows/security-gates.yml` with secret scanning on `pull_request` + `push: main` and dependency audit on `pull_request` + `schedule`.
+- AI PR Summary CI runs `.github/workflows/ai-pr-summary.yml` on every `pull_request` (opened/synchronize/reopened) targeting `main`:
+  - Posts a structured summary comment: **What Changed** / **What to Check Manually** / Risk Level.
+  - Calls GitHub Models API (`gpt-4o-mini`, `models: read` permission, `github.token`) — no external secrets needed.
+  - Excludes lock files, `.env*`, and key/cert files from the diff before sending to AI.
+  - Falls back to plain diff-stats comment on any AI error; never fails the pipeline due to AI issues.
+  - Comment is upserted (idempotent) on force-push.
 - Release CI runs `.github/workflows/release.yml` on `push: main`; creates/updates a Release PR via `release-please`. Merging the Release PR creates a tag and GitHub Release.
 - Deploy CI runs `.github/workflows/deploy.yml` via manual `workflow_dispatch`; requires GitHub Environments (`staging`, `production`) with scoped `SF_AUTH_URL` secrets. The `production` environment must have Required Reviewers and a `main`-only branch policy. Validate gate runs before every deploy. Rollback procedure is in `RUNBOOK.md` Section 17.
 
