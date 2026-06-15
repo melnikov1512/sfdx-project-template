@@ -601,3 +601,26 @@ sf project deploy start \
 - Hotfix процесс: Section 16
 - Security gate failures: Section 10–12
 - Exception lifecycle: Section 12
+
+---
+
+## 18) AI Workflow Disable / Emergency Disable
+
+For the full procedure see **[`docs/AI-GOVERNANCE.md` — Section 4](docs/AI-GOVERNANCE.md#4-disable--rollback-procedure)**.
+
+### Quick-reference: rollback triggers
+
+Act immediately when any of the following conditions are met:
+
+| Trigger | Threshold |
+|---------|-----------|
+| AI comment accuracy drops | < 50% precision for 2+ consecutive quarterly reviews |
+| Pipeline slowdown caused by AI | Average `ai-summary` job > 5 min over a 1-week window |
+| Security incident traced to AI data handling | Any confirmed sensitive content leak via AI prompt |
+| GitHub Models API failure rate | > 50% persistent failures over 2 weeks |
+
+### Quick-reference: disable options
+
+- **Single PR** — cancel the `ai-summary` job in Actions UI, or (if label filtering is configured) add a `[skip ai]` label to the PR.
+- **All PRs (emergency)** — **Settings → Actions → General → Workflows → AI PR Summary → Disable workflow**.
+- **Permanent rollback** — delete `.github/workflows/ai-pr-summary.yml` via a hotfix branch (Section 16); commit with `ci: remove AI PR summary workflow`.
