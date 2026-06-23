@@ -84,6 +84,29 @@
 - CI metadata validation authenticates with `sf org login sfdx-url`; keep auth material in GitHub secrets only and do not assume local `.sf/` or `.sfdx/` state exists on runners.
 - Security incidents and temporary risk acceptances must follow `RUNBOOK.md` triage/exception process (owner + reason + expiration + rollback trigger).
 
+## Salesforce Knowledge Sources (Context7)
+
+When working on Salesforce tasks, agents MUST use Context7 (`get-library-docs` tool) with these library IDs instead of relying on general knowledge. Always resolve the ID first if unsure.
+
+| Context7 Library ID | What it covers | Priority |
+|---|---|---|
+| `/damecek/salesforce-documentation-context` | Complete Salesforce Platform docs (Apex, LWC, Aura, Metadata API, REST API) | ⭐ Primary |
+| `/forcedotcom/sf-skills` | Agentforce skills: Flow, Apex, SOQL, LWC patterns | ⭐ Primary |
+| `/websites/lwc_dev` | LWC official framework docs (wire, lifecycle, decorators) | LWC tasks |
+| `/websites/v1_lightningdesignsystem` | SLDS: utility classes, design tokens, component blueprints | UI tasks |
+| `/trailheadapps/apex-recipes` | Apex best-practice code examples (collections, DML, async) | Apex tasks |
+| `/trailheadapps/lwc-recipes` | LWC pattern examples (wire, events, navigation) | LWC tasks |
+| `/salesforcecli/cli` | SF CLI / sfdx commands reference | CLI/CI tasks |
+| `/forcedotcom/schemas` | JSON schemas for `sfdx-project.json` and scratch org definitions | Config tasks |
+| `/apex-enterprise-patterns/fflib-apex-common-samplecode` | Enterprise patterns: Service Layer, Unit of Work, Selector, Domain | Complex Apex |
+
+**Usage pattern:**
+```
+1. resolve-library-id if ID uncertain
+2. get-library-docs with context7CompatibleLibraryID + topic
+3. Fall back to Fetch → developer.salesforce.com if Context7 has no match
+```
+
 ## Agent Operating Guidance for This Repo
 - Before editing, inspect `force-app/main/default/` to detect which metadata types are present in the current branch.
 - When adding new LWC/Aura code, wire it to existing npm workflows (lint, jest, prettier) and verify locally.
