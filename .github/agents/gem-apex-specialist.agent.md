@@ -23,8 +23,9 @@ Use these sources **before** writing any Apex. Prioritize Context7 over general 
    - `/apex-enterprise-patterns/fflib-apex-common-samplecode` — Service Layer, Unit of Work, Selector, Domain
    - `/forcedotcom/sf-skills` — Salesforce-specific patterns
 2. **Fetch fallback**: `https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/` for edge cases
-3. **Codebase**: Read existing Apex in `force-app/main/default/classes/` and `triggers/` before writing — match project conventions
-4. **AGENTS.md**: Project conventions and API version (`sfdx-project.json`)
+3. **Project instructions**: Read `.github/instructions/apex-patterns.instructions.md` — it defines mandatory class structure, trigger pattern, exception handling, and naming conventions for this project
+4. **Codebase**: Read existing Apex in `force-app/main/default/classes/` and `triggers/` before writing — match project conventions
+5. **AGENTS.md**: Project conventions and API version (`sfdx-project.json`)
 
 # Governor Limits Reference (Always Apply)
 

@@ -22,8 +22,9 @@ LWC (Decorators, Wire, Lifecycle, Events), SLDS (Utility Classes, Design Tokens,
    - `/damecek/salesforce-documentation-context` — LWC Developer Guide, Component Reference
    - `/forcedotcom/sf-skills` — Agentforce LWC patterns
 2. **Fetch fallback**: `https://lwc.dev/docs` and `https://developer.salesforce.com/docs/component-library` for component-specific reference
-3. **Codebase**: Inspect `force-app/main/default/lwc/` and `aura/` before writing — match project patterns
-4. **AGENTS.md**: ESLint config (`eslint.config.js`), Jest config (`jest.config.js`), prettier targets
+3. **Project instructions**: Read `.github/instructions/lwc-patterns.instructions.md` — it defines mandatory custom labels pattern, utility component usage, timezone handling, and @api getter/setter convention for this project
+4. **Codebase**: Inspect `force-app/main/default/lwc/` and `aura/` before writing — match project patterns
+5. **AGENTS.md**: ESLint config (`eslint.config.js`), Jest config (`jest.config.js`), prettier targets
 
 # LWC Core Patterns
 
@@ -193,6 +194,36 @@ force-app/main/default/aura/
 - Apply SLDS utility classes — never inline styles.
 - Wire adapters: always handle both `data` and `error` branches.
 - Custom events: use descriptive names (`orderselected`, `recordsaved`); `bubbles: false` by default unless crossing shadow boundaries.
+
+### Custom Labels (mandatory)
+Never hardcode user-facing strings. Always use Custom Labels via a `labels.js` module:
+```javascript
+// myComponent/labels.js
+import MyComponent_Title from '@salesforce/label/c.MyComponent_Title';
+import MyComponent_SuccessMessage from '@salesforce/label/c.MyComponent_SuccessMessage';
+export default { MyComponent_Title, MyComponent_SuccessMessage };
+```
+```javascript
+// myComponent.js
+import labels from './labels';
+export default class MyComponent extends LightningElement {
+    labels = { ...labels };
+}
+```
+```html
+<!-- myComponent.html -->
+<h1>{labels.MyComponent_Title}</h1>
+```
+
+### Shared Utility Component (check-or-create)
+Before implementing `showToast`, `formatDate`, or error handling helpers:
+- Check `force-app/main/default/lwc/utility/` — **if found**, import and use it
+- **If not found**, create `lwc/utility/utility.js` with shared helpers (`showSuccessToast`, `showErrorToast`, `handleError`, `formatDate`, `formatDateTime`)
+```javascript
+import utility from 'c/utility';
+utility.showSuccessToast(this.labels.MyComponent_SuccessMessage);
+utility.handleError(error);
+```
 
 ## 4. Test
 - Write Jest tests **before** marking implementation complete.
