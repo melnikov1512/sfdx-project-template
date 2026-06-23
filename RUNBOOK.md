@@ -624,3 +624,72 @@ Act immediately when any of the following conditions are met:
 - **Single PR** — cancel the `ai-summary` job in Actions UI, or (if label filtering is configured) add a `[skip ai]` label to the PR.
 - **All PRs (emergency)** — **Settings → Actions → General → Workflows → AI PR Summary → Disable workflow**.
 - **Permanent rollback** — delete `.github/workflows/ai-pr-summary.yml` via a hotfix branch (Section 16); commit with `ci: remove AI PR summary workflow`.
+
+---
+
+## 19) AI Test Recommendations
+
+### What it is
+
+The `ai-test-recommendations.yml` GitHub Actions workflow runs automatically on every pull request. It analyzes the changed files in the PR, calls the AI model, and posts an **advisory** comment listing suggested test cases per file. The comment is informational only — it does not gate the pipeline and does not replace mandatory CI checks.
+
+### How to read the PR comment
+
+The workflow posts a collapsible comment structured as follows:
+
+1. **Advisory disclaimer** — a notice at the top stating that the suggestions are AI-generated and are not a replacement for the project's required test suite.
+2. **Recommendations table** — one row per changed file:
+
+   | File | Type | Suggested Test Cases |
+   |------|------|----------------------|
+   | `force-app/.../myComponent/myComponent.js` | LWC | Unit test for `connectedCallback`, mock wire adapter for `@wire(getRecord)` |
+   | `force-app/.../MyClass.cls` | Apex | Positive/negative unit tests, bulk data test (200+ records) |
+
+3. **Overall risk level** — a single indicator at the bottom of the comment:
+   - 🟢 **Low** — config or metadata-only changes, no logic touched.
+   - 🟡 **Medium** — logic changes in one or a few files.
+   - 🔴 **High** — widespread changes, shared utilities, or security-sensitive code.
+4. **Fallback mode** — when the AI model is unavailable the comment shows the changed file list only, without analysis (see [When AI is unavailable](#when-ai-is-unavailable) below).
+
+### File type → test strategy
+
+Use this table to map the file type identified in the comment to the correct test tool:
+
+| File Type | Detection | Required Test Tool | Example command |
+|-----------|-----------|-------------------|-----------------|
+| LWC | path matches `**/lwc/**` | Jest via `sfdx-lwc-jest` | `npm run test:lwc` |
+| Apex class / trigger | `*.cls`, `*.trigger` | `sf apex run test` | `sf apex run test --target-org <alias>` |
+| Metadata (non-LWC/Apex) | `force-app/` subtree, other extensions | Manual validation / deploy validate | `sf project deploy validate --source-dir force-app` |
+| Config / CI | `.github/`, `package.json`, etc. | Review + integration test | `npm run validate` |
+
+### What to do with AI recommendations
+
+1. Treat the comment as a **checklist supplement**, not an authoritative test plan.
+2. Cross-reference suggestions against existing test files under `force-app/main/default/lwc/*/__tests__/` — avoid duplicating tests that already exist.
+3. AI suggestions are **starting points**. Verify relevance to the actual change before implementing; discard suggestions for code paths that were not modified.
+4. If a suggestion is unclear or wrong, dismiss it and proceed with your own judgment — the comment has no impact on CI status.
+
+### When AI is unavailable
+
+When the GitHub Models API is unreachable or returns an error, the workflow automatically switches to **fallback mode**:
+
+- The PR comment is still posted, listing changed files without AI-generated analysis.
+- The workflow job exits with **success** — the pipeline is not blocked.
+- No action is required from the developer. This is expected degraded behavior, not an error.
+
+To confirm fallback mode was triggered, check the `ai-test-recommendations` job logs in the Actions tab for the line:
+
+```
+AI analysis unavailable — posting fallback comment.
+```
+
+### Disabling the workflow
+
+For the general AI workflow disable process, see **Section 18** above.
+
+Specific disable options for `ai-test-recommendations`:
+
+- **Single PR** — cancel the `ai-test-recommendations` job in the Actions UI. The rest of the pipeline is unaffected.
+- **All PRs (temporary)** — go to **Settings → Actions → General → Workflows**, find `AI Test Recommendations`, and click **Disable workflow**.
+- **All PRs (via repository variable)** — add a repository variable `DISABLE_AI_TEST_REC` with value `true`. The workflow checks this variable at startup and skips execution when it is set.
+- **Permanent removal** — delete or rename `.github/workflows/ai-test-recommendations.yml` via a hotfix branch (Section 16); commit with `ci: remove AI test recommendations workflow`.
