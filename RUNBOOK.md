@@ -612,12 +612,12 @@ For the full procedure see **[`docs/AI-GOVERNANCE.md` — Section 4](docs/AI-GOV
 
 Act immediately when any of the following conditions are met:
 
-| Trigger | Threshold |
-|---------|-----------|
-| AI comment accuracy drops | < 50% precision for 2+ consecutive quarterly reviews |
-| Pipeline slowdown caused by AI | Average `ai-summary` job > 5 min over a 1-week window |
-| Security incident traced to AI data handling | Any confirmed sensitive content leak via AI prompt |
-| GitHub Models API failure rate | > 50% persistent failures over 2 weeks |
+| Trigger                                      | Threshold                                             |
+| -------------------------------------------- | ----------------------------------------------------- |
+| AI comment accuracy drops                    | < 50% precision for 2+ consecutive quarterly reviews  |
+| Pipeline slowdown caused by AI               | Average `ai-summary` job > 5 min over a 1-week window |
+| Security incident traced to AI data handling | Any confirmed sensitive content leak via AI prompt    |
+| GitHub Models API failure rate               | > 50% persistent failures over 2 weeks                |
 
 ### Quick-reference: disable options
 
@@ -640,10 +640,10 @@ The workflow posts a collapsible comment structured as follows:
 1. **Advisory disclaimer** — a notice at the top stating that the suggestions are AI-generated and are not a replacement for the project's required test suite.
 2. **Recommendations table** — one row per changed file:
 
-   | File | Type | Suggested Test Cases |
-   |------|------|----------------------|
-   | `force-app/.../myComponent/myComponent.js` | LWC | Unit test for `connectedCallback`, mock wire adapter for `@wire(getRecord)` |
-   | `force-app/.../MyClass.cls` | Apex | Positive/negative unit tests, bulk data test (200+ records) |
+   | File                                       | Type | Suggested Test Cases                                                        |
+   | ------------------------------------------ | ---- | --------------------------------------------------------------------------- |
+   | `force-app/.../myComponent/myComponent.js` | LWC  | Unit test for `connectedCallback`, mock wire adapter for `@wire(getRecord)` |
+   | `force-app/.../MyClass.cls`                | Apex | Positive/negative unit tests, bulk data test (200+ records)                 |
 
 3. **Overall risk level** — a single indicator at the bottom of the comment:
    - 🟢 **Low** — config or metadata-only changes, no logic touched.
@@ -655,12 +655,12 @@ The workflow posts a collapsible comment structured as follows:
 
 Use this table to map the file type identified in the comment to the correct test tool:
 
-| File Type | Detection | Required Test Tool | Example command |
-|-----------|-----------|-------------------|-----------------|
-| LWC | path matches `**/lwc/**` | Jest via `sfdx-lwc-jest` | `npm run test:lwc` |
-| Apex class / trigger | `*.cls`, `*.trigger` | `sf apex run test` | `sf apex run test --target-org <alias>` |
+| File Type               | Detection                              | Required Test Tool                  | Example command                                     |
+| ----------------------- | -------------------------------------- | ----------------------------------- | --------------------------------------------------- |
+| LWC                     | path matches `**/lwc/**`               | Jest via `sfdx-lwc-jest`            | `npm run test:lwc`                                  |
+| Apex class / trigger    | `*.cls`, `*.trigger`                   | `sf apex run test`                  | `sf apex run test --target-org <alias>`             |
 | Metadata (non-LWC/Apex) | `force-app/` subtree, other extensions | Manual validation / deploy validate | `sf project deploy validate --source-dir force-app` |
-| Config / CI | `.github/`, `package.json`, etc. | Review + integration test | `npm run validate` |
+| Config / CI             | `.github/`, `package.json`, etc.       | Review + integration test           | `npm run validate`                                  |
 
 ### What to do with AI recommendations
 
