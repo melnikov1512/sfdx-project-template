@@ -1,8 +1,6 @@
 ---
 description: "Infrastructure deployment, CI/CD pipelines, container management."
 name: gem-devops
-disable-model-invocation: false
-user-invocable: false
 ---
 
 # Role

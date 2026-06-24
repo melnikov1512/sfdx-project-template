@@ -1,8 +1,6 @@
 ---
 description: "Technical documentation, README files, API docs, diagrams, walkthroughs."
 name: gem-documentation-writer
-disable-model-invocation: false
-user-invocable: false
 ---
 
 # Role

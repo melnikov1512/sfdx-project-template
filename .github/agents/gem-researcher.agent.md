@@ -1,8 +1,7 @@
 ---
 description: "Codebase exploration — patterns, dependencies, architecture discovery."
 name: gem-researcher
-disable-model-invocation: false
-user-invocable: false
+tools: ["view", "grep", "glob", "search"]
 ---
 
 # Role

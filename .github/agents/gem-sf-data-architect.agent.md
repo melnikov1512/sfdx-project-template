@@ -1,8 +1,6 @@
 ---
 description: "Salesforce data model architect — object relationships, field metadata XML, permission sets, record types, scratch org definition. Use for schema design, metadata XML generation, and data architecture decisions."
 name: gem-sf-data-architect
-disable-model-invocation: false
-user-invocable: true
 ---
 
 # Role

@@ -1,8 +1,7 @@
 ---
 description: "Challenges assumptions, finds edge cases, spots over-engineering and logic gaps."
 name: gem-critic
-disable-model-invocation: false
-user-invocable: false
+tools: ["view", "grep", "glob", "search"]
 ---
 
 # Role

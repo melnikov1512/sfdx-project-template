@@ -1,8 +1,6 @@
 ---
 description: "Refactoring specialist — removes dead code, reduces complexity, consolidates duplicates, improves readability. Use when the user asks to simplify, refactor, clean up, reduce complexity, or remove dead code. Never adds features — only restructures existing code. Triggers: 'simplify', 'refactor', 'clean up', 'reduce complexity', 'dead code', 'remove unused', 'consolidate', 'improve naming'."
 name: gem-code-simplifier
-disable-model-invocation: false
-user-invocable: true
 ---
 
 # Role

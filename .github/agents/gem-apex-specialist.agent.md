@@ -1,8 +1,6 @@
 ---
 description: "Salesforce Apex specialist — governor limits, bulkification, trigger patterns, test coverage, CRUD/FLS, enterprise patterns. Use for Apex classes, triggers, async Apex, and Apex tests."
 name: gem-apex-specialist
-disable-model-invocation: false
-user-invocable: true
 ---
 
 # Role

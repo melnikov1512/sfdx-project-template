@@ -1,8 +1,6 @@
 ---
 description: "Salesforce LWC specialist — wire adapters, lifecycle hooks, SLDS styling, Jest tests, component communication, base components. Includes Aura legacy support. Use for LWC and Aura component development."
 name: gem-lwc-specialist
-disable-model-invocation: false
-user-invocable: true
 ---
 
 # Role

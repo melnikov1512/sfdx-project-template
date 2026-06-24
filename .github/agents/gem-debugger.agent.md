@@ -1,8 +1,7 @@
 ---
 description: "Root-cause analysis, stack trace diagnosis, regression bisection, error reproduction. Use when the user asks to debug, diagnose, find root cause, trace errors, or investigate failures. Never implements fixes. Triggers: 'debug', 'diagnose', 'root cause', 'why is this failing', 'trace error', 'bisect', 'regression'."
 name: gem-debugger
-disable-model-invocation: false
-user-invocable: true
+tools: ["view", "grep", "glob", "search", "bash"]
 ---
 
 # Role

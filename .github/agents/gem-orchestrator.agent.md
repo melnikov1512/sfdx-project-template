@@ -1,8 +1,7 @@
 ---
 description: "Multi-agent orchestration for project execution, feature implementation, and automated verification. Primary entry point for all tasks. Detects phase, routes to agents, synthesizes results. Never executes directly. Triggers: any user request, multi-step tasks, complex implementations, project coordination."
 name: gem-orchestrator
-disable-model-invocation: true
-user-invocable: true
+infer: false
 ---
 
 # Role

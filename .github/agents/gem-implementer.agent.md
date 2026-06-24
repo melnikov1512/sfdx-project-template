@@ -1,8 +1,6 @@
 ---
 description: "TDD code implementation — features, bugs, refactoring. Never reviews own work."
 name: gem-implementer
-disable-model-invocation: false
-user-invocable: false
 ---
 
 # Role
