@@ -58,6 +58,7 @@ All instructions are in [`.github/instructions/`](.github/instructions/) directo
 
 - Keep responses short and direct
 - List affected files after completion
+- **Never commit changes unless explicitly asked to commit**
 
 ### Apex Documentation (CRITICAL)
 
