@@ -43,6 +43,7 @@ force-app/main/default/classes/
 ├── helpers/          # Utility classes, batch jobs, schedulers
 ├── services/         # Business logic and service layer classes
 ├── selectors/        # Data access layer (SOQL queries)
+├── exceptions/       # Custom exception classes (extend Exception)
 ├── tests/            # All test classes (@isTest)
 ├── wrappers/         # DTO classes for data transfer
 └── constants/        # Constants and configuration classes
@@ -77,6 +78,11 @@ force-app/main/default/classes/
 #### Wrappers (`/wrappers/`)
 - DTO classes, JSON serialization wrappers
 - Example: `MyObjectWrapper.cls`
+
+#### Exceptions (`/exceptions/`)
+- Custom exception classes
+- Must end with `Exception` and extend `Exception`
+- Example: `MyObjectException.cls`, `IntegrationException.cls`
 
 #### Constants (`/constants/`)
 - Constant values and configuration
@@ -162,12 +168,122 @@ public with sharing class MyObjectService {
 
 ---
 
+## Public Methods as Thin Orchestrators
+
+**CRITICAL**: Public methods are entry points and orchestrators — not the place for business logic.
+Business logic lives in private methods. This enforces readability, Single Responsibility, and keeps try-catch cleanly at the boundary.
+
+### Rules
+
+- Public method body should read like a description of the process (~5–7 lines)
+- Private methods named in `verbNoun` format: `validateInput`, `buildResponse`, `persistRecord`
+- One private method = one responsibility
+- `try-catch` only in public methods (boundary layer); private methods just throw
+- If a method is hard to name in a single phrase — it needs to be split
+
+```apex
+// ❌ Public method doing everything
+@AuraEnabled
+public static OrderResponse createOrder(OrderRequest req) {
+    try {
+        if (req.accountId == null) { throw new OrderException('...'); }
+        List<Product2> products = [SELECT Id FROM Product2 WHERE Id IN :req.productIds];
+        Order__c order = new Order__c(Account__c = req.accountId, Status__c = 'Draft');
+        insert order;
+        List<OrderItem__c> items = new List<OrderItem__c>();
+        for (Product2 p : products) {
+            items.add(new OrderItem__c(Order__c = order.Id, Product__c = p.Id));
+        }
+        insert items;
+        return new OrderResponse(order.Id);
+    } catch (Exception e) {
+        ExceptionHandlingService.handleException(e);
+        return null;
+    }
+}
+
+// ✅ Public method as thin orchestrator
+@AuraEnabled
+public static OrderResponse createOrder(OrderRequest req) {
+    try {
+        validateRequest(req);
+        List<Product2> products = fetchProducts(req.productIds);
+        Order__c order = createOrderRecord(req.accountId);
+        createOrderItems(order.Id, products);
+        return buildResponse(order.Id);
+    } catch (Exception e) {
+        ExceptionHandlingService.handleException(e);
+        return null;
+    }
+}
+
+private static void validateRequest(OrderRequest req) {
+    if (req.accountId == null) {
+        throw new OrderException(System.Label.Order_AccountRequired);
+    }
+}
+
+private static List<Product2> fetchProducts(List<Id> productIds) {
+    return ProductSelector.getByIds(productIds);
+}
+
+private static Order__c createOrderRecord(Id accountId) {
+    Order__c order = new Order__c(Account__c = accountId, Status__c = 'Draft');
+    insert order;
+    return order;
+}
+
+private static void createOrderItems(Id orderId, List<Product2> products) {
+    List<OrderItem__c> items = new List<OrderItem__c>();
+    for (Product2 p : products) {
+        items.add(new OrderItem__c(Order__c = orderId, Product__c = p.Id));
+    }
+    insert items;
+}
+
+private static OrderResponse buildResponse(Id orderId) {
+    return new OrderResponse(orderId);
+}
+```
+
+---
+
 ## Exception Handling Pattern
 
 **CRITICAL**: All externally-callable methods must be wrapped in try-catch. This applies to:
 - `@AuraEnabled` methods — called from LWC/Aura
 - `global` / `public` methods — called from integrations
 - `@InvocableMethod` methods — called from Flow
+
+### Fail Fast vs Graceful Degradation
+
+Each layer of the application has a different error-handling responsibility:
+
+| Layer | Strategy | Why |
+|---|---|---|
+| Business logic (service, selector) | **Fail fast** — throw immediately | The caller must know about the problem |
+| Boundary (controller, @InvocableMethod) | **Graceful** — catch, log, return user-friendly response | The user must not see stack traces |
+| Async (Queueable, Batch, Future, Scheduled) | **Graceful** — catch, log, **never throw** | No caller exists to catch — transaction is already committed |
+
+```apex
+// ✅ Service — fail fast, no try-catch
+public static void validateRecord(MyObject__c record) {
+    if (record.Amount__c < 0) {
+        throw new MyObjectException(System.Label.MyObject_AmountNegative);
+    }
+}
+
+// ✅ Controller — boundary, catches everything
+@AuraEnabled
+public static void save(MyObject__c record) {
+    try {
+        MyObjectService.validateRecord(record);
+        insert record;
+    } catch (Exception e) {
+        ExceptionHandlingService.handleException(e);
+    }
+}
+```
 
 ### ExceptionHandlingService — Check Before Writing
 
@@ -186,26 +302,45 @@ Before implementing exception handling, check whether a service class already ex
 public with sharing class ExceptionHandlingService {
 
     /**
-     * @description Handles exceptions in synchronous context (controllers, services).
+     * @description Handles exceptions in synchronous context.
      * Logs the error and throws AuraHandledException for the client.
      * @param e `Exception` The caught exception
      */
     public static void handleException(Exception e) {
-        // TODO: add your logging mechanism (Platform Event, Custom Object, etc.)
         System.debug(LoggingLevel.ERROR, e.getMessage() + '\n' + e.getStackTraceString());
         throw new AuraHandledException(e.getMessage());
     }
 
     /**
-     * @description Handles exceptions in asynchronous context (Queueable, Batch, Future, Scheduled).
-     * Logs the error and sends a notification — does not throw.
+     * @description Handles DmlException in synchronous context.
+     * Extracts per-record DML error details before throwing AuraHandledException.
+     * @param e `DmlException` The caught DML exception
+     */
+    public static void handleException(DmlException e) {
+        System.debug(LoggingLevel.ERROR, buildDmlDetails(e) + '\n' + e.getStackTraceString());
+        throw new AuraHandledException(e.getMessage());
+    }
+
+    /**
+     * @description Handles exceptions in asynchronous context.
+     * Logs the error — does not throw.
      * @param context `String` Description of the operation that failed
-     * @param e `Exception` The caught exception
+     * @param e `Exception` The caught exception (may be null)
      */
     public static void handleAsyncException(String context, Exception e) {
         String message = context + (e != null ? ': ' + e.getMessage() : '');
         System.debug(LoggingLevel.ERROR, message);
-        // TODO: add async notification (e.g., send email, create log record)
+    }
+
+    /**
+     * @description Handles DmlException in asynchronous context.
+     * Extracts per-record DML error details and logs without throwing.
+     * @param context `String` Description of the operation that failed
+     * @param e `DmlException` The caught DML exception
+     */
+    public static void handleAsyncException(String context, DmlException e) {
+        String message = context + ':\n' + buildDmlDetails(e);
+        System.debug(LoggingLevel.ERROR, message);
     }
 
     /**
@@ -215,14 +350,47 @@ public with sharing class ExceptionHandlingService {
      */
     public static void logException(Exception e) {
         System.debug(LoggingLevel.ERROR, e.getMessage() + '\n' + e.getStackTraceString());
-        // TODO: add your logging mechanism
+    }
+
+    private static String buildDmlDetails(DmlException e) {
+        List<String> errors = new List<String>();
+        for (Integer i = 0; i < e.getNumDml(); i++) {
+            errors.add(
+                'Record ' + i + ': ' +
+                String.join(e.getDmlFieldNames(i), ', ') +
+                ' — ' + e.getDmlMessage(i)
+            );
+        }
+        return String.join(errors, '\n');
+    }
+}
+```
+
+### Custom Exception Types
+
+**CRITICAL**: Create custom exceptions for business validation errors, integration failures, and invariant violations — not generic `Exception`.
+
+**Rules:**
+- Class name **must end with `Exception`** (Salesforce requirement)
+- Class **must extend `Exception`**
+- Stored as a separate file in `classes/exceptions/` — not as inner classes
+- Use Custom Labels for exception messages
+
+```apex
+// classes/exceptions/MyObjectException.cls
+public class MyObjectException extends Exception {}
+
+// Usage in service:
+public static void validateRecord(MyObject__c record) {
+    if (record.Status__c == null) {
+        throw new MyObjectException(System.Label.MyObject_StatusRequired);
     }
 }
 ```
 
 ### Usage Examples
 
-**✅ Synchronous controller method**
+**✅ Synchronous controller — DML + generic catch**
 ```apex
 @AuraEnabled
 public static MyResponse myMethod(Id recordId) {
@@ -230,6 +398,9 @@ public static MyResponse myMethod(Id recordId) {
         MyObject__c record = MyObjectSelector.getById(recordId);
         MyObjectService.processRecord(record);
         return new MyResponse(record);
+    } catch (DmlException e) {
+        ExceptionHandlingService.handleException(e);
+        return null;
     } catch (Exception e) {
         ExceptionHandlingService.handleException(e);
         return null;
@@ -243,6 +414,8 @@ public static MyResponse myMethod(Id recordId) {
 public static void processFromFlow(List<Id> recordIds) {
     try {
         MyObjectService.processRecords(recordIds);
+    } catch (DmlException e) {
+        ExceptionHandlingService.handleException(e);
     } catch (Exception e) {
         ExceptionHandlingService.handleException(e);
     }
@@ -254,9 +427,37 @@ public static void processFromFlow(List<Id> recordIds) {
 public void execute(QueueableContext context) {
     try {
         // async business logic
+    } catch (DmlException e) {
+        ExceptionHandlingService.handleAsyncException('MyQueueable.execute', e);
     } catch (Exception e) {
         ExceptionHandlingService.handleAsyncException('MyQueueable.execute', e);
     }
+}
+```
+
+**✅ Rethrow with context between layers**
+```apex
+// Wrap with context when re-throwing across layers — preserves original stack trace
+try {
+    Database.insert(records);
+} catch (DmlException e) {
+    throw new MyObjectException(
+        'Failed to insert MyObject for parent: ' + parentId + '. ' + e.getMessage(),
+        e // inner exception — getCause() retrieves the original
+    );
+}
+```
+
+**✅ Finally for resource/state cleanup**
+```apex
+// finally always executes — even if catch re-throws
+try {
+    HttpResponse res = new Http().send(req);
+    processResponse(res);
+} catch (CalloutException e) {
+    ExceptionHandlingService.handleException(e);
+} finally {
+    MyState.isProcessing = false;
 }
 ```
 
@@ -264,6 +465,29 @@ public void execute(QueueableContext context) {
 ```apex
 // BAD — bypasses logging, fails in async context
 throw new AuraHandledException(e.getMessage());
+```
+
+### Anti-patterns
+
+```apex
+// ❌ Swallowing — error disappears silently
+try {
+    process(record);
+} catch (Exception e) { }
+
+// ❌ Swallowing with debug — exception is still lost
+try {
+    process(record);
+} catch (Exception e) {
+    System.debug(e.getMessage()); // use ExceptionHandlingService instead
+}
+
+// ❌ Exceptions for flow control — use explicit condition checks
+try {
+    result = records[100];
+} catch (Exception e) {
+    result = null; // correct: records.size() > 100 ? records[100] : null
+}
 ```
 
 ---
