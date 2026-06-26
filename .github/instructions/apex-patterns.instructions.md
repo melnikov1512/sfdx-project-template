@@ -492,10 +492,21 @@ try {
 
 ---
 
-## Constants Usage
+## Constants Pattern
 
-Before writing string literals, check for a `Constants.cls` in `classes/constants/`:
-- **If found** → use its defined constants
+**CRITICAL**: Never use string literals anywhere in code. Always extract to constants or Custom Labels.
+
+### Decision: where to define a constant
+
+| Scope | Where to define |
+|---|---|
+| Reused across multiple classes or business domains | `classes/constants/Constants.cls` (global) |
+| Used only within one class or one service | Private constant in that class/service |
+
+### Global constants — `Constants.cls`
+
+Before writing any string literal, check for `Constants.cls` in `classes/constants/`:
+- **If found** → use its defined constants or add new ones
 - **If not found** → create `classes/constants/Constants.cls`
 
 ```apex
@@ -507,11 +518,46 @@ public class Constants {
 ```
 
 ```apex
-// CORRECT
+// ✅ CORRECT
 if (record.Status__c == Constants.STATUS_ACTIVE) { }
 
-// BAD — magic string
+// ❌ BAD — magic string
 if (record.Status__c == 'Active') { }
+```
+
+### Local constants — within a class
+
+If a constant is only needed within one class, define it as a `private static final` field in that class.
+Do not pollute `Constants.cls` with values that have no meaning outside a single context.
+
+```apex
+public class OrderService {
+
+    private static final String ORDER_STATUS_DRAFT    = 'Draft';
+    private static final String ORDER_STATUS_APPROVED = 'Approved';
+    private static final Integer MAX_LINE_ITEMS       = 100;
+
+    public static void approveOrder(Order__c order) {
+        if (order.Status__c != ORDER_STATUS_DRAFT) {
+            throw new OrderException(System.Label.Order_MustBeDraft);
+        }
+        order.Status__c = ORDER_STATUS_APPROVED;
+    }
+}
+```
+
+### No string literals rule
+
+**Every string value in code must be a named constant or Custom Label — no exceptions.**
+
+```apex
+// ❌ BAD — string literals everywhere
+if (record.Type__c == 'Partner' && record.Region__c == 'EMEA') { }
+sendEmail('noreply@company.com', 'Welcome!');
+
+// ✅ CORRECT
+if (record.Type__c == Constants.ACCOUNT_TYPE_PARTNER && record.Region__c == Constants.REGION_EMEA) { }
+sendEmail(Constants.EMAIL_NOREPLY, System.Label.Email_WelcomeSubject);
 ```
 
 ---

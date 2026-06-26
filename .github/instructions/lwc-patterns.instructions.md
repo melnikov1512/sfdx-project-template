@@ -93,6 +93,85 @@ utility.showSuccessToast('Operation completed successfully');
 
 ---
 
+## Constants Pattern
+
+**CRITICAL**: Never use business values or configuration strings as literals in JavaScript or HTML templates. Always extract to named constants.
+
+### Decision: where to define a constant
+
+| Scope | Where to define |
+|---|---|
+| Reused across multiple components or business domains | `constants` export in `c/utility` |
+| Used only within one component | `const` at the top of the component's `.js` file |
+
+### Shared constants — `c/utility`
+
+Export a `constants` object from the utility component for values shared across multiple components.
+
+```javascript
+// lwc/utility/utility.js
+export const constants = {
+    STATUS_ACTIVE:   'Active',
+    STATUS_INACTIVE: 'Inactive',
+    MAX_PAGE_SIZE:   200,
+};
+```
+
+```javascript
+// In any component:
+import { constants } from 'c/utility';
+
+if (this.record.Status__c === constants.STATUS_ACTIVE) { }
+```
+
+### Local constants — within a component
+
+If a constant is only needed within one component, define it as a module-level `const` at the top of the `.js` file — before the class declaration.
+
+```javascript
+// myComponent.js
+import { LightningElement } from 'lwc';
+
+const ORDER_STATUS_DRAFT    = 'Draft';
+const ORDER_STATUS_APPROVED = 'Approved';
+const MAX_ITEMS             = 50;
+
+export default class MyComponent extends LightningElement {
+
+    isEditable(order) {
+        return order.Status__c === ORDER_STATUS_DRAFT;
+    }
+}
+```
+
+### No string literals rule
+
+**Every business value and configuration string in JS and HTML must be a named constant or Custom Label — no exceptions.**
+This applies to: record statuses, types, codes, API names, limits, keys.
+CSS selectors used purely as DOM references within a single component are exempt.
+
+```javascript
+// ❌ BAD — business values as string literals
+if (this.record.Type__c === 'Partner') { }
+if (this.record.Status__c === 'Active') { }
+const url = '/apex/MyPage?id=' + recordId;
+
+// ✅ CORRECT
+if (this.record.Type__c === constants.ACCOUNT_TYPE_PARTNER) { }
+if (this.record.Status__c === constants.STATUS_ACTIVE) { }
+const url = PAGE_URL_MY_PAGE + '?id=' + recordId;
+```
+
+```html
+<!-- ❌ BAD — hardcoded business value passed to logic -->
+<c-my-component status="Active"></c-my-component>
+
+<!-- ✅ CORRECT — value comes from JS constant -->
+<c-my-component status={defaultStatus}></c-my-component>
+```
+
+---
+
 ## Utility Pattern
 
 **Before using `c/utility`, check if a shared utility LWC component already exists in the project:**
