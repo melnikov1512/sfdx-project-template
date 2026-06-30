@@ -6,10 +6,15 @@ applyTo: "force-app/main/default/classes/tests/**/*.cls"
 
 ## Testing Philosophy
 
-**Target Coverage Strategy**: Focus on testing **controller classes only**. Service, Selector, and Helper classes should be covered automatically when controller methods are invoked. This approach helps identify unused or deprecated logic.
+**Target Coverage Strategy**: Test at two levels:
+
+1. **Entry-point classes** — everything callable from outside the Salesforce platform boundary: controllers (`@AuraEnabled`/`@RemoteAction`), `global` classes, REST/SOAP API handlers, Batch Apex, Schedulers, Queueables, and Invocable methods. These tests verify end-to-end user scenarios and ensure integration contracts are met.
+
+2. **Individual modules** — DML/SOQL processors (Selectors, Repositories), Service classes, and any standalone utility logic with non-trivial behaviour. These unit tests isolate module contracts and make regression-spotting faster and more precise.
 
 **Key Principles**:
-- Test real user scenarios through controller methods
+- Test entry-point classes through their public/global interface (real user scenarios)
+- Test service and selector/DML modules independently when they contain logic worth isolating
 - Use `System.runAs()` to test under specific user contexts
 - Use dynamic test data creation via TestFactory
 - Use Assert class for all validations
@@ -312,7 +317,8 @@ static void methodNameTest_BulkOperation() {
 - Use `System.runAs(adminUser)` in every test method
 - Place **test-specific data creation BEFORE `System.runAs()`** — only the actual test execution (startTest/stopTest + assertions) should live inside runAs
 - Use Assert class with descriptive messages
-- Test controller methods that invoke service/selector logic automatically
+- Test entry-point classes (controllers, global classes, APIs, batches, schedulers, queueables, invocables) through their public interface
+- Test service and selector/DML module classes independently when they contain isolated logic
 - Use overloaded TestFactory methods for different scenarios
 - Follow naming convention: `[methodName]Test_[Case]`
 - Add ApexDoc to test class and every test method
@@ -320,7 +326,7 @@ static void methodNameTest_BulkOperation() {
 ### ❌ DON'T
 
 - Don't use `System.assert()` or `System.assertEquals()` — use Assert class
-- Don't create separate tests for service/selector methods — test through controllers
+- Don't skip tests for service/selector/DML classes — test them independently when they contain non-trivial logic
 - Don't use `test` prefix in method names — use `Test` suffix
 - Don't skip ApexDoc on test methods
 - Don't create User/PermissionSetAssignment with plain `insert` outside TestFactory — always go through TestFactory methods which handle MIXED_DML
