@@ -31,15 +31,6 @@ All instructions are in [`.github/instructions/`](.github/instructions/) directo
 - @api Properties in Flow Screen Components
 - Error Handling, Component Communication
 
-### [flow-lwc.instructions.md](./instructions/flow-lwc.instructions.md)
-
-**Applies to:** `force-app/main/default/flows/**/*.flow-meta.xml`, `**/*.js-meta.xml`
-
-- Complete guide for passing data from List View Flows to LWC
-- Selected Record IDs pattern
-- Flow variable naming requirements
-- LWC meta configuration
-
 ### [unit-tests.instructions.md](./instructions/unit-tests.instructions.md)
 
 **Applies to:** `force-app/main/default/classes/tests/**/*.cls`
@@ -67,25 +58,31 @@ All instructions are in [`.github/instructions/`](.github/instructions/) directo
 **When to create a plan:**
 If the user's message contains an explicit planning request — create a plan file immediately.
 Trigger phrases (and synonyms): "plan this", "prepare a plan", "outline", "create a plan", "let's plan".
+
 - Create the plan file at the correct path right away — do not present the plan inline in chat
 - After creating, briefly report the file path and key points
 
 **Save all plans to:**
+
 ```
 docs/plans/<plan-name>/<plan-name>.md
 ```
+
 Folder and file name must be kebab-case describing the task.
 
 All supporting files (research, temp scripts, drafts, diagrams) go in the **same plan folder**:
+
 ```
 docs/plans/<plan-name>/
 ├── <plan-name>.md
 ├── research.md
 └── any-other-supporting-file
 ```
+
 Never create supporting files in the root `docs/` or in arbitrary locations.
 
 **Never implement a plan automatically.** After creating a plan, always ask:
+
 > "Ready to implement. Shall I proceed?"
 
 Only begin implementation when the user explicitly confirms (e.g., "yes", "go ahead", "proceed", "implement it").
@@ -115,7 +112,6 @@ GitHub Copilot automatically applies the relevant `.instructions.md` files based
 
 - **An Apex class** → `apex-patterns.instructions.md` applies
 - **An LWC component** → `lwc-patterns.instructions.md` applies
-- **A Flow** → `flow-lwc.instructions.md` applies
 - **A test class** → `unit-tests.instructions.md` applies
 
 This ensures context-appropriate guidance without manual switching between documentation files.
