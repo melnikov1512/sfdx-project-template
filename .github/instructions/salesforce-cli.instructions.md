@@ -37,7 +37,7 @@ sf org display
 
 ```bash
 # Create scratch org (definition in config/project-scratch-def.json)
-sf org create scratch --definition-file config/project-scratch-def.json --alias <alias> --duration-days 7 --set-default
+sf org create scratch --definition-file config/project-scratch-def.json --alias <alias> --duration-days 30 --set-default
 
 # Open scratch org in browser
 sf org open --target-org <alias>
@@ -127,8 +127,8 @@ sf org generate password
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `sfdx-project.json` | Package directories, API version, namespace |
-| `config/project-scratch-def.json` | Scratch org features and settings |
-| `.forceignore` | Files excluded from source push/pull |
+| File                              | Purpose                                     |
+| --------------------------------- | ------------------------------------------- |
+| `sfdx-project.json`               | Package directories, API version, namespace |
+| `config/project-scratch-def.json` | Scratch org features and settings           |
+| `.forceignore`                    | Files excluded from source push/pull        |

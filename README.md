@@ -1,158 +1,148 @@
 # Salesforce DX Project Template
 
-`sfdx-project-template` is a minimal Salesforce DX project template with Node-based quality tooling for Aura/LWC.
+[![PR Check](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/pr-check.yml/badge.svg)](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/pr-check.yml)
+[![Security Gates](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/security-gates.yml/badge.svg)](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/security-gates.yml)
+![API Version](https://img.shields.io/badge/Salesforce_API-v66.0-00A1E0)
+![Node](https://img.shields.io/badge/Node.js-20%2B-339933)
 
-This repository includes:
+A production-ready Salesforce DX project template with Node-based quality tooling, CI/CD pipelines, and GitHub Copilot AI integration baked in. Clone, configure secrets, and start shipping metadata.
 
-- package directory `force-app` configured in `sfdx-project.json`;
-- ESLint (flat config), Prettier, and `@salesforce/sfdx-lwc-jest` configured;
-- scratch org baseline prepared in `config/project-scratch-def.json`;
-- no business metadata added yet.
+## What's included
 
-## Current Project Layout
+- **Linting** — ESLint flat config for Aura, LWC, and Jest mocks (`@salesforce/eslint-config-lwc`)
+- **Formatting** — Prettier with Apex and XML plugins; enforced in CI and on pre-commit
+- **LWC unit tests** — `@salesforce/sfdx-lwc-jest` with watch, debug, and coverage modes
+- **Apex SAST** — `sf code-analyzer` (SARIF output) on every PR; blocks on `error`-level findings
+- **Pre-commit hooks** — Husky + lint-staged: format → lint → related LWC tests
+- **CI pipelines** — PR checks, Salesforce metadata validate-only, security gates, AI PR summaries, automated releases, and manual deploy to staging/production
+- **GitHub Copilot** — custom agents, instruction files, skills, and prompt files pre-configured under `.github/`
 
-- `sfdx-project.json` - SFDX project configuration (`sourceApiVersion`: `66.0`)
-- `config/project-scratch-def.json` - base scratch org configuration
-- `eslint.config.js` - lint rules for Aura/LWC/Jest mocks
-- `jest.config.js` - LWC Jest configuration
-- `package.json` - npm scripts, lint-staged, dev tooling
+## Prerequisites
 
-## Quick Start
+| Requirement | Notes |
+|-------------|-------|
+| Node.js 20+ | Required |
+| npm | Required |
+| [Salesforce CLI (`sf`)](https://developer.salesforce.com/tools/salesforcecli) | Required for Apex tests and org operations |
+| Authenticated default org | For `test:apex` and deploy commands |
+| `SF_AUTH_URL` repository secret | For CI metadata validation |
 
-### Prerequisites
-
-- Node.js 20+ and npm
-- (Optional for Apex validation) Salesforce CLI (`sf`) in `PATH`
-- (Optional for Apex validation) authenticated default target org
-- (For GitHub Actions metadata validation) repository secret `SF_AUTH_URL`
-
-Check org availability:
-
-```bash
-sf org display --json
-```
+## Getting started
 
 ```bash
+# 1. Install dependencies
 npm install
-```
 
-## Daily Development Commands
+# 2. Authenticate your org (browser login)
+sf org login web --alias my-org --set-default
 
-Lint JS for Aura/LWC:
-
-```bash
-npm run lint
-```
-
-Full test run (LWC Jest + Apex tests when an org is available):
-
-```bash
-npm run test
-```
-
-Format files:
-
-```bash
-npm run prettier
-```
-
-Full local validation before a PR:
-
-```bash
+# 3. Run full local validation
 npm run validate
 ```
 
-`npm run validate` runs `lint`, `prettier:verify`, `test:lwc:ci`, and then `test:apex`.
-The Apex step is skipped gracefully (without failing the template pipeline) if:
+> [!NOTE]
+> `test:apex` is skipped gracefully if no `@isTest` classes are found, `sf` is not installed, or no default org is configured. No false failures in a fresh template.
 
-- there are no local Apex test classes (`@isTest`) in `force-app/main/default/classes`;
-- `sf` CLI is not installed;
-- a default target org is not configured.
+## Project structure
 
-## CI Expectations
-
-PR workflow `.github/workflows/pr-check.yml` always runs:
-
-- `npm run lint`
-- `npm run prettier:verify`
-- `npm run test:lwc:ci`
-
-Security workflow `.github/workflows/security-gates.yml` runs:
-
-- secret scanning on `pull_request` and `push` to `main`;
-- dependency audit on `pull_request` and weekly `schedule`;
-- fail policy: any secret-scan finding fails the job, and dependency findings with severity `high` or `critical` fail the job;
-- approved, time-boxed exceptions must follow `RUNBOOK.md` Section 11 with owner, reason, and expiration.
-
-If a PR changes files under `force-app/` (or under the directory defined by repository variable `SFDX_METADATA_DIR`), the workflow also runs a Salesforce metadata validate-only check.
-
-AI workflow `.github/workflows/ai-pr-summary.yml` runs on every PR opened, updated, or re-opened:
-
-- Generates a structured summary comment on the PR with **What Changed** and **What to Check Manually** sections plus a risk level badge.
-- Uses [GitHub Models](https://docs.github.com/en/github-models) API (`gpt-4o-mini`) via `github.token` — **no extra secrets required**.
-- Diff scope is restricted: lock files, `.env*`, key/cert files, and binary blobs are excluded before sending to the model.
-- If the AI call fails for any reason, the job falls back to a plain diff-stats comment — **the pipeline never breaks due to AI errors**.
-- The comment is updated (not duplicated) on force-pushes.
-
-This check requires:
-
-- repository secret `SF_AUTH_URL` containing an SFDX auth URL for the CI org;
-- the workflow uses a fixed wait value `--wait 30`, aligned with job `timeout-minutes: 30`.
-
-Metadata check behavior:
-
-- if there are no changes under the metadata root in the PR, the check completes successfully and logs a skip message;
-- if the metadata root does not exist in the branch yet, the check is also skipped without a false template failure;
-- if metadata changes exist but `SF_AUTH_URL` is not set, the PR check fails with an explicit error;
-- logs and the list of changed files are stored in the GitHub Actions artifact `salesforce-validate-<run_id>`.
-
-## Onboarding Runbook
-
-For common local development and CI issues, use `RUNBOOK.md`.
-
-The runbook covers:
-
-- bootstrap/dependency installation;
-- lint and LWC test behavior in an empty template;
-- reasons for graceful skip in `npm run test:apex`;
-- diagnostics for failure and skip scenarios of `Salesforce Metadata Validate` in PRs.
-- security triage and exception lifecycle for secret scan and dependency audit findings.
-
-## Additional Test Modes
-
-LWC unit tests only (Jest):
-
-```bash
-npm run test:lwc
+```
+sfdx-project-template/
+├── force-app/               # Salesforce source root (deploy target)
+│   └── main/default/        # Standard metadata directories go here
+├── config/
+│   └── project-scratch-def.json   # Scratch org definition
+├── .github/
+│   ├── agents/              # Copilot custom agents (gem-*, context-architect, …)
+│   ├── instructions/        # Auto-applied Copilot instruction files
+│   ├── prompts/             # Copilot prompt files
+│   ├── skills/              # Copilot skills (tavily, gh-cli, refactor, …)
+│   └── workflows/           # CI/CD pipelines
+├── sfdx-project.json        # SFDX config — API v66.0, package dir: force-app
+├── eslint.config.js         # ESLint flat config
+├── jest.config.js           # LWC Jest config
+└── package.json             # npm scripts and lint-staged config
 ```
 
-Apex tests (if an org is available):
+## Commands
+
+### Daily development
+
+| Command | What it does |
+|---------|-------------|
+| `npm run lint` | ESLint for Aura/LWC JS |
+| `npm run prettier` | Format all supported files |
+| `npm run test:lwc` | Run LWC Jest tests |
+| `npm run test:lwc:watch` | Jest in watch mode |
+| `npm run test:lwc:coverage` | Jest with coverage report |
+| `npm run test:apex` | Run Apex tests on connected org |
+| `npm run test` | LWC CI + Apex tests |
+| `npm run validate` | lint + prettier check + LWC CI + Apex tests |
+| `npm run lint:apex` | Salesforce SAST via `sf code-analyzer` |
+
+### Scratch org
 
 ```bash
-npm run test:apex
+# Create and set as default
+sf org create scratch \
+  --definition-file config/project-scratch-def.json \
+  --alias dev \
+  --duration-days 7 \
+  --set-default
+
+# Open in browser
+sf org open
+
+# Deploy source
+sf project deploy start --source-dir force-app
 ```
 
-CI test mode:
+## CI/CD pipelines
 
-```bash
-npm run test:lwc:ci
-```
+| Workflow | Trigger | What it does |
+|----------|---------|-------------|
+| `pr-check.yml` | Pull request → `main` | Lint, format check, LWC tests, Apex SAST, Salesforce metadata validate-only |
+| `security-gates.yml` | PR + push `main` + weekly | Secret scanning, dependency audit (blocks on `high`/`critical`) |
+| `ai-pr-summary.yml` | Pull request | AI-generated PR summary via GitHub Models (`gpt-4o-mini`) — no extra secrets |
+| `ai-test-recommendations.yml` | Pull request | AI-suggested test improvements |
+| `codeql.yml` | PR + push `main` | CodeQL analysis |
+| `release.yml` | Push → `main` | Creates/updates Release PR via `release-please` |
+| `deploy.yml` | Manual (`workflow_dispatch`) | Deploy to `staging` or `production` with validate gate |
 
-Watch mode:
+> [!IMPORTANT]
+> Metadata validation in CI requires the `SF_AUTH_URL` repository secret. If metadata changes are detected in a PR but the secret is missing, the check fails with an explicit error.
 
-```bash
-npm run test:lwc:watch
-```
+> [!TIP]
+> Set the optional repository variable `SFDX_METADATA_DIR` to override the metadata root without changing code. Defaults to `force-app`.
 
-Coverage:
+## Deployment
 
-```bash
-npm run test:lwc:coverage
-```
+Deployments to `staging` and `production` are triggered manually via **Actions → Deploy → Run workflow**.
 
-## Notes for Template Usage
+- A validate-only gate always runs before the actual deploy.
+- The `production` environment requires Required Reviewers and enforces a `main`-only branch policy.
+- For rollback procedures, see `RUNBOOK.md` Section 17.
 
-- Salesforce metadata source root is `force-app/` (per `sfdx-project.json`).
-- When adding the first metadata, create the standard path `force-app/main/default/`.
-- For scratch org usage, use `config/project-scratch-def.json` as the base definition file.
-- For CI metadata validation, use a dedicated low-privilege org user and store its auth URL only in the `SF_AUTH_URL` secret.
+## Releasing
+
+This project uses [release-please](https://github.com/googleapis/release-please) with [Conventional Commits](https://www.conventionalcommits.org/):
+
+| Commit type | Version bump |
+|-------------|-------------|
+| `fix:` | PATCH |
+| `feat:` | MINOR |
+| `feat!:` / `BREAKING CHANGE:` | MAJOR |
+
+Merging the Release PR created by `release-please` publishes a tag and GitHub Release. `CHANGELOG.md` is maintained automatically — do not edit manually.
+
+## GitHub Copilot integration
+
+The `.github/` directory contains a full Copilot setup:
+
+- **Instruction files** — auto-applied context for Apex, LWC, unit tests, and Salesforce CLI based on file patterns
+- **Custom agents** — specialized sub-agents: `gem-apex-specialist`, `gem-lwc-specialist`, `gem-sf-data-architect`, `gem-implementer`, `gem-reviewer`, `gem-debugger`, and more
+- **Skills** — on-demand workflows: `create-implementation-plan`, `refactor-plan`, `architecture-blueprint-generator`, `github-issues`, Tavily web search, and more
+- **Prompt files** — reusable prompts for common tasks (e.g. `create-exception-handler`)
+
+## Troubleshooting
+
+For common issues — bootstrap failures, lint false negatives, Apex test skips, CI metadata validation failures, and security exception lifecycle — see **`RUNBOOK.md`**.

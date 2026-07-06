@@ -168,7 +168,7 @@ Job `Salesforce Code Analysis` runs in PR check and reports findings in SARIF fo
   - Fix the underlying issue and re-run checks.
 - **False positive** (rule too broad, context-specific safety, intentional pattern):
   - Document the reason and severity (e.g., "intentional: test data factory").
-  - Follow Section 12 (time-boxed exception) if immediate fix is not possible.
+  - Follow Section 13 (exception lifecycle) if immediate fix is not possible.
 
 ### Severity thresholds and merge policy
 
@@ -212,22 +212,9 @@ To speed up diagnostics, include:
 - reproduction steps;
 - exact command and full output;
 - Node/npm versions (`node -v`, `npm -v`);
-- for CI issues: a run link and log from artifact `salesforce-validate-<run_id>`.
-
----
-
-## 9) What to include in a bug report
-
-To speed up diagnostics, include:
-
-- reproduction steps;
-- exact command and full output;
-- Node/npm versions (`node -v`, `npm -v`);
 - for CI issues: a run link and log from artifact `salesforce-validate-<run_id>` or `code-analysis-<run_id>`.
 
 ---
-
-## 10) Security gate fails on secret scanning
 
 ## 10) Security gate fails on secret scanning
 
@@ -243,7 +230,7 @@ Job `Secret Scan (Fail on Findings)` fails in `.github/workflows/security-gates.
    - immediately rotate/revoke the exposed credential;
    - remove secret from repository history if required by policy;
    - push a remediation commit and re-run checks.
-4. If false positive, follow Section 11 (time-boxed exception) and add an owner for cleanup.
+4. If false positive, follow Section 13 (exception lifecycle) and add an owner for cleanup.
 
 ### SLA
 
@@ -253,7 +240,7 @@ Job `Secret Scan (Fail on Findings)` fails in `.github/workflows/security-gates.
 ### Fail policy
 
 - Any secret-scan finding in `.github/workflows/security-gates.yml` fails CI on `pull_request` and `push` to `main`.
-- Merge is blocked until remediation is merged or a documented, time-boxed exception is approved (Section 11).
+- Merge is blocked until remediation is merged or a documented, time-boxed exception is approved (Section 13).
 
 ---
 
@@ -269,7 +256,7 @@ Job `Dependency Audit (High/Critical Gate)` fails due to `npm audit --audit-leve
 2. Identify direct vs transitive vulnerable packages.
 3. Apply the safest upgrade path (`npm update`, explicit version bump, or dependency replacement).
 4. Re-run CI and confirm no `high`/`critical` findings remain.
-5. If no safe fix exists yet, follow Section 11 and create a time-boxed exception.
+5. If no safe fix exists yet, follow Section 13 (exception lifecycle) and create a time-boxed exception.
 
 ### Fail policy
 
@@ -278,28 +265,7 @@ Job `Dependency Audit (High/Critical Gate)` fails due to `npm audit --audit-leve
 
 ---
 
-## 11) Security gate fails on dependency audit
-
-### Symptom
-
-Job `Dependency Audit (High/Critical Gate)` fails due to `npm audit --audit-level=high`.
-
-### Actions
-
-1. Open artifact `dependency-audit-<run_id>` and inspect `npm-audit.json`.
-2. Identify direct vs transitive vulnerable packages.
-3. Apply the safest upgrade path (`npm update`, explicit version bump, or dependency replacement).
-4. Re-run CI and confirm no `high`/`critical` findings remain.
-5. If no safe fix exists yet, follow Section 11 and create a time-boxed exception.
-
-### Fail policy
-
-- Any `high` or `critical` dependency vulnerability fails CI.
-- `moderate`/`low` do not block merge by default, but should be triaged.
-
----
-
-## 13) CodeQL SAST fails in CI
+## 12) CodeQL SAST fails in CI
 
 ### Symptom
 
@@ -315,7 +281,7 @@ Job `CodeQL Analysis (JavaScript)` fails in `.github/workflows/codeql.yml`.
 4. If false positive:
    - Dismiss via the Security tab UI (requires write access).
    - Document reason in the dismissal form.
-   - No PR block after dismissal, but keep a record per Section 12.
+   - No PR block after dismissal, but keep a record per Section 13.
 
 ### Fail policy
 
@@ -327,7 +293,7 @@ Job `CodeQL Analysis (JavaScript)` fails in `.github/workflows/codeql.yml`.
 
 ---
 
-## 12) Exception lifecycle (time-boxed risk acceptance)
+## 13) Exception lifecycle (time-boxed risk acceptance)
 
 Use exceptions only when an immediate safe remediation is not available.
 
@@ -508,74 +474,74 @@ gh pr create --base main --title "fix(<scope>): <description>" --body "Closes #<
 
 ### Hotfix exception
 
-If the fix requires bypassing normal quality gates (e.g., emergency secret rotation), follow Section 12 (time-boxed exception) and document:
+If the fix requires bypassing normal quality gates (e.g., emergency secret rotation), follow Section 13 (time-boxed exception) and document:
 
 - `owner`, `reason`, `scope`, `expiration_date`, `rollback_trigger`.
 
 ---
 
-## 17) Deploy workflow и rollback
+## 17) Deploy workflow and rollback
 
-### Обзор
+### Overview
 
-Deploy workflow (`.github/workflows/deploy.yml`) выполняет деплой Salesforce-метаданных в целевые окружения с обязательным validate-шагом.
+The deploy workflow (`.github/workflows/deploy.yml`) deploys Salesforce metadata to target environments with a mandatory validate step before every deploy.
 
-### Окружения
+### Environments
 
 | Environment  | Secrets                            | GitHub Environment Protection                                      |
 | ------------ | ---------------------------------- | ------------------------------------------------------------------ |
-| `staging`    | `SF_AUTH_URL` (environment secret) | рекомендуется: required reviewer                                   |
-| `production` | `SF_AUTH_URL` (environment secret) | обязательно: required reviewer + deployment branch policy (`main`) |
+| `staging`    | `SF_AUTH_URL` (environment secret) | Recommended: required reviewer                                     |
+| `production` | `SF_AUTH_URL` (environment secret) | Required: required reviewer + deployment branch policy (`main`)    |
 
-Для validate job используются репо-уровня секреты `SF_AUTH_URL_STAGING` и `SF_AUTH_URL_PRODUCTION` — это позволяет выполнять validate без ожидания аппрувала окружения.
+Repository-level secrets `SF_AUTH_URL_STAGING` and `SF_AUTH_URL_PRODUCTION` are used by the validate job — this allows validate to run without waiting for environment approval.
 
-### Необходимые настройки
+### Required setup
 
-1. В GitHub репозитории → **Settings → Environments** создать окружения `staging` и `production`.
-2. В каждом окружении добавить secret `SF_AUTH_URL` (SFDX Auth URL для целевого орга).
-3. Добавить репо-уровня секреты `SF_AUTH_URL_STAGING` и `SF_AUTH_URL_PRODUCTION` (Settings → Secrets → Actions) — используются в validate job.
-4. Для `production` включить **Required reviewers** и **Deployment branch policy: main only**.
+1. In the GitHub repository → **Settings → Environments**, create `staging` and `production` environments.
+2. In each environment, add the `SF_AUTH_URL` secret (SFDX Auth URL for the target org).
+3. Add repository-level secrets `SF_AUTH_URL_STAGING` and `SF_AUTH_URL_PRODUCTION` (Settings → Secrets → Actions) — used by the validate job.
+4. For `production`, enable **Required reviewers** and **Deployment branch policy: main only**.
 
-### Запуск деплоя
+### Running a deploy
 
 1. **Actions → Deploy → Run workflow**.
-2. Выбрать `environment`: `staging` или `production`.
-3. Опционально: `dry_run: true` — выполнит только validate без деплоя.
-4. Дождаться прохождения `validate` job.
-5. Для `production`: подтвердить деплой в GitHub Environments UI.
+2. Select `environment`: `staging` or `production`.
+3. Optional: `dry_run: true` — runs validate only, no actual deploy.
+4. Wait for the `validate` job to pass.
+5. For `production`: confirm the deploy in the GitHub Environments UI.
 
 ### Rollback
 
-Rollback выполняется путём повторного деплоя предыдущей версии.
+Rollback is performed by re-deploying the previous working version.
 
-#### Шаги rollback (быстрый)
+#### Quick rollback (via workflow)
 
-1. Найти предыдущий успешный деплой в `.artifacts/deploy/deploy.log` или GitHub deployments.
-2. Определить Git-коммит/тег предыдущей рабочей версии:
+1. Find the previous successful deploy in `.artifacts/deploy/deploy.log` or GitHub deployments.
+2. Identify the Git commit/tag of the last known-good version:
    ```bash
    git log --oneline --decorate origin/main | head -20
    ```
-3. Создать hotfix-ветку от рабочего тега:
+3. Create a hotfix branch from the known-good tag:
    ```bash
    git checkout -b hotfix/<issue-id>-rollback <previous-good-tag>
    git push origin hotfix/<issue-id>-rollback
    ```
-4. Открыть PR в `main`, смерджить (fast-track).
-5. Запустить deploy workflow с `environment=staging` → убедиться, что работает.
-6. Запустить deploy workflow с `environment=production`.
+4. Open a PR to `main` and merge (fast-track).
+5. Run deploy workflow with `environment=staging` → verify it works.
+6. Run deploy workflow with `environment=production`.
 
-#### Шаги rollback (через sf CLI напрямую)
+#### Emergency rollback (via sf CLI directly)
 
-Если нужно срочно откатить без workflow:
+If an immediate rollback is needed without the workflow:
 
 ```bash
-# Авторизоваться в орге
+# Authenticate to the org
 sf org login sfdx-url --sfdx-url-file <auth-file> --alias rollback-org
 
-# Отменить активный деплой (если ещё in-progress)
+# Cancel an active in-progress deploy
 sf project deploy cancel --job-id <deployment-id> --target-org rollback-org
 
-# Задеплоить предыдущую версию
+# Deploy the previous version
 git checkout <previous-good-tag>
 sf project deploy start \
   --source-dir force-app \
@@ -587,20 +553,20 @@ sf project deploy start \
 
 | Severity                    | Rollback SLA      |
 | --------------------------- | ----------------- |
-| Critical (production down)  | 1 час             |
-| High (major feature broken) | 4 часа            |
+| Critical (production down)  | 1 hour            |
+| High (major feature broken) | 4 hours           |
 | Medium                      | Next business day |
 
-### Артефакты деплоя
+### Deploy artifacts
 
 - Validate log: artifact `deploy-validate-<run_id>` → `validate.log`, `results/`
 - Deploy log: artifact `deploy-<environment>-<run_id>` → `deploy.log`, `results/`
 
-### Связанные секции
+### Related sections
 
-- Hotfix процесс: Section 16
-- Security gate failures: Section 10–12
-- Exception lifecycle: Section 12
+- Hotfix process: Section 16
+- Security gate failures: Section 10–13
+- Exception lifecycle: Section 13
 
 ---
 

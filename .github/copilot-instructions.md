@@ -7,39 +7,7 @@
 
 ## Instruction Files
 
-All instructions are in [`.github/instructions/`](.github/instructions/) directory:
-
-### [apex-patterns.instructions.md](./instructions/apex-patterns.instructions.md)
-
-**Applies to:** `force-app/main/default/classes/**/*.cls`, `force-app/main/default/triggers/**/*.trigger`
-
-- **Apex Documentation (ApexDoc)** ⚠️ Required for all public classes and methods
-- **Project Structure & Class Organization** — Required for all new classes
-- Trigger Handler Pattern (BaseTriggerHandler)
-- Selector Pattern, Service Layer Pattern
-- Exception Handling Pattern (ExceptionHandlingService)
-- Custom Labels in Apex
-- Timezone Handling in Apex
-
-### [lwc-patterns.instructions.md](./instructions/lwc-patterns.instructions.md)
-
-**Applies to:** `force-app/main/default/lwc/**/*.js`, `**/*.html`, `**/*.css`
-
-- **Custom Labels Pattern** — Never hardcode strings
-- Utility Pattern (shared utility component)
-- **Timezone Handling** — Critical for date/time operations
-- @api Properties in Flow Screen Components
-- Error Handling, Component Communication
-
-### [unit-tests.instructions.md](./instructions/unit-tests.instructions.md)
-
-**Applies to:** `force-app/main/default/classes/tests/**/*.cls`
-
-- **Testing Philosophy** — Test controllers only, coverage through invocation
-- **Naming Convention** — `[methodName]Test_[optionalCase]`
-- **TestFactory Pattern** — Check if exists, create if not
-- **MIXED_DML Solution** — TestFactory wraps User/PermissionSetAssignment inserts in `System.runAs(new User(Id = UserInfo.getUserId()))` internally
-- **Assert Class Usage** — Modern assertions with descriptive messages
+> Instruction files in `.github/instructions/` are auto-applied by Copilot based on `applyTo` glob patterns in each file's frontmatter. No manual switching needed.
 
 ---
 
@@ -108,10 +76,8 @@ Approving or commenting on a plan is **not** permission to implement it.
 
 ## How Instructions Work
 
-GitHub Copilot automatically applies the relevant `.instructions.md` files based on the `applyTo` glob patterns defined in each file's frontmatter. When you work on:
+Copilot automatically loads the relevant `.github/instructions/*.instructions.md` file based on the file you're editing. When you work on:
 
-- **An Apex class** → `apex-patterns.instructions.md` applies
+- **An Apex class or trigger** → `apex-patterns.instructions.md` applies
 - **An LWC component** → `lwc-patterns.instructions.md` applies
 - **A test class** → `unit-tests.instructions.md` applies
-
-This ensures context-appropriate guidance without manual switching between documentation files.
