@@ -58,3 +58,4 @@ target/
 /plan/
 /docs/
 /.playwright-mcp/
+/.husky/_/
