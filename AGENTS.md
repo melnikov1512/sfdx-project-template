@@ -27,10 +27,15 @@
   ```bash
   npm run test:lwc
   ```
+- Run LWC tests with coverage:
+  ```bash
+  npm run test:lwc:coverage
+  ```
 - Run full test flow (LWC CI + Apex checks):
   ```bash
   npm run test
   ```
+  > `test:apex` gracefully skips if: no `@isTest` classes found, `sf` CLI missing, or no default org configured.
 - Run related tests in pre-commit style (already wired via `lint-staged`):
   ```bash
   npx sfdx-lwc-jest -- --bail --findRelatedTests --passWithNoTests
@@ -48,14 +53,18 @@
   npm run lint:apex
   ```
 - PR CI also runs `.github/workflows/pr-check.yml`; when a PR changes files under `force-app/` (or `SFDX_METADATA_DIR`), it adds a Salesforce metadata validate-only gate.
+- Security checks run via `.github/workflows/security-gates.yml` on every PR to `main` and weekly (CodeQL, secret scan, dependency audit).
+- AI-assisted PR summaries run via `.github/workflows/ai-pr-summary.yml`; advisory only, never blocks merge. Governed by `docs/AI-GOVERNANCE.md`.
 
 ## Project-Specific Conventions
+- Always use `sf` (SF CLI v2), not `sfdx` (deprecated).
 - Use **ESLint flat config** (`eslint.config.js`), not legacy `.eslintrc*`.
 - LWC test files match `**/lwc/**/*.test.js`; these explicitly disable `@lwc/lwc/no-unexpected-wire-adapter-usages`.
 - Jest ignores `.localdevserver` (`jest.config.js`); do not rely on files there in tests.
 - Pre-commit commands are defined via Husky + `lint-staged` in `package.json` (format + lint + related LWC tests); ensure a Husky pre-commit hook exists in the active branch/repo setup.
 - `.forceignore` excludes test folders like `**/__tests__/**` from source push/pull flows; keep deploy intent in mind when adding test assets.
 - GitHub Actions metadata validation expects repository secret `SF_AUTH_URL`; optional repository variable `SFDX_METADATA_DIR` changes the metadata root without code changes.
+- Manual deploy workflow (`.github/workflows/deploy.yml`) targets `staging` or `production` environments with a `dry_run` flag. Requires **repository secrets** `SF_AUTH_URL_STAGING` / `SF_AUTH_URL_PRODUCTION` for validation and **environment-scoped secret** `SF_AUTH_URL` per GitHub Environment for actual deploy.
 
 ## Integration Points and Boundaries
 - Salesforce org interaction is expected through SFDX/SF CLI workflows (repository includes `sfdx-project.json` + scratch definition).
@@ -92,3 +101,4 @@ When working on Salesforce tasks, agents MUST use Context7 (`get-library-docs` t
 - When adding new LWC/Aura code, wire it to existing npm workflows (lint, jest, prettier) and verify locally.
 - Prefer small, metadata-type-scoped changes; this template has minimal structure, so avoid introducing cross-cutting abstractions prematurely.
 - If adding first functional metadata, document any new folder conventions directly in this file for future agents.
+- Plans live in `docs/plans/<plan-name>/`; the primary plan file is `<plan-name>.md` with supporting files co-located in the same folder.
