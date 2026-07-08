@@ -3,6 +3,11 @@ name: Deploy
 on:
   workflow_dispatch:
     inputs:
+      ref:
+        description: "Branch or tag to deploy"
+        required: true
+        default: "main"
+        type: string
       environment:
         description: "Target environment"
         required: true
@@ -37,6 +42,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.ref }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -134,6 +140,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.ref }}
           fetch-depth: 0
 
       - name: Setup Node.js

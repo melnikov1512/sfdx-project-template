@@ -364,64 +364,7 @@ BREAKING CHANGE: SF_AUTH_URL format changed from X to Y
 
 ---
 
-## 15) Release process
-
-Releases are triggered **manually** via GitHub Actions workflow dispatch (`.github/workflows/release.yml`).
-
-### How to trigger a release
-
-1. Go to **Actions → Release → Run workflow** in GitHub UI.
-2. Select the branch (`main`) and fill in the inputs:
-   - **bump_type**: `patch` | `minor` | `major`
-   - **dry_run**: `true` to preview the new version without making changes (recommended before first real release)
-3. Click **Run workflow**.
-
-### What the workflow does
-
-```
-[You click "Run workflow" with bump_type=minor]
-        ↓
-npm version minor --no-git-tag-version  →  package.json: 1.0.0 → 1.1.0
-        ↓
-git commit "chore(release): v1.1.0"  →  pushed to main
-        ↓
-git tag v1.1.0  →  pushed to origin
-        ↓
-gh release create v1.1.0 --generate-notes  →  GitHub Release published
-```
-
-### Release checklist
-
-- [ ] All feature PRs for this release are merged into `main`.
-- [ ] All CI checks on `main` are green.
-- [ ] No open critical issues that should block this release.
-- [ ] Confirm the correct `bump_type` against SemVer rules (Section 14).
-- [ ] Optionally run **dry_run=true** first to verify the resulting version.
-
-### CLI equivalent (emergency / offline)
-
-If GitHub UI is unavailable:
-
-```bash
-# 1. Bump version (no git tag)
-npm version patch|minor|major --no-git-tag-version
-
-# 2. Commit and push
-git add package.json package-lock.json
-git commit -m "chore(release): vX.Y.Z"
-git push origin main
-
-# 3. Tag and push tag
-git tag vX.Y.Z
-git push origin vX.Y.Z
-
-# 4. Create GitHub Release
-gh release create vX.Y.Z --title "vX.Y.Z" --generate-notes --latest
-```
-
----
-
-## 16) Hotfix process
+## 15) Hotfix process
 
 A hotfix addresses a critical production defect that cannot wait for the normal release cycle.
 
@@ -433,7 +376,7 @@ A hotfix addresses a critical production defect that cannot wait for the normal 
 ### Hotfix workflow
 
 ```
-main (vX.Y.Z — released)
+main
   │
   └── hotfix/<issue-id>-<short-description>
             │
@@ -441,27 +384,27 @@ main (vX.Y.Z — released)
             │
             └── PR → main
                         │
-                        └── release-please creates PATCH release vX.Y.(Z+1)
+                        └── deploy workflow triggered manually
 ```
 
 **Step-by-step:**
 
 ```bash
-# 1. Create hotfix branch from main (latest tag)
+# 1. Create hotfix branch from main
 git checkout -b hotfix/<issue-id>-<description> main
 
 # 2. Implement the fix
 # ...
 
-# 3. Commit with conventional commit (fix: triggers PATCH bump)
+# 3. Commit with conventional commit
 git commit -m "fix(<scope>): <description of critical fix>"
 
 # 4. Push and open PR against main
 git push origin hotfix/<issue-id>-<description>
 gh pr create --base main --title "fix(<scope>): <description>" --body "Closes #<issue-id>"
 
-# 5. After PR merge, release-please will open a PATCH Release PR
-# 6. Merge the Release PR → vX.Y.(Z+1) tag + GitHub Release created automatically
+# 5. After PR merge, trigger deploy workflow manually (Actions → Deploy → Run workflow)
+#    Select ref=main, environment=staging → verify, then environment=production
 ```
 
 ### Hotfix SLA
@@ -488,10 +431,10 @@ The deploy workflow (`.github/workflows/deploy.yml`) deploys Salesforce metadata
 
 ### Environments
 
-| Environment  | Secrets                            | GitHub Environment Protection                                      |
-| ------------ | ---------------------------------- | ------------------------------------------------------------------ |
-| `staging`    | `SF_AUTH_URL` (environment secret) | Recommended: required reviewer                                     |
-| `production` | `SF_AUTH_URL` (environment secret) | Required: required reviewer + deployment branch policy (`main`)    |
+| Environment  | Secrets                            | GitHub Environment Protection                                   |
+| ------------ | ---------------------------------- | --------------------------------------------------------------- |
+| `staging`    | `SF_AUTH_URL` (environment secret) | Recommended: required reviewer                                  |
+| `production` | `SF_AUTH_URL` (environment secret) | Required: required reviewer + deployment branch policy (`main`) |
 
 Repository-level secrets `SF_AUTH_URL_STAGING` and `SF_AUTH_URL_PRODUCTION` are used by the validate job — this allows validate to run without waiting for environment approval.
 
@@ -505,10 +448,11 @@ Repository-level secrets `SF_AUTH_URL_STAGING` and `SF_AUTH_URL_PRODUCTION` are 
 ### Running a deploy
 
 1. **Actions → Deploy → Run workflow**.
-2. Select `environment`: `staging` or `production`.
-3. Optional: `dry_run: true` — runs validate only, no actual deploy.
-4. Wait for the `validate` job to pass.
-5. For `production`: confirm the deploy in the GitHub Environments UI.
+2. Select `ref`: branch or tag to deploy (default: `main`).
+3. Select `environment`: `staging` or `production`.
+4. Optional: `dry_run: true` — runs validate only, no actual deploy.
+5. Wait for the `validate` job to pass.
+6. For `production`: confirm the deploy in the GitHub Environments UI.
 
 ### Rollback
 
