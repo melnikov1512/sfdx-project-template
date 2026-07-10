@@ -46,5 +46,10 @@
         "**/lwc/**": [
             "sfdx-lwc-jest -- --bail --findRelatedTests --passWithNoTests"
         ]
+    },
+    "optionalDependencies": {
+        "@prettier-apex/apex-ast-serializer-darwin-x64": "2.2.6",
+        "@prettier-apex/apex-ast-serializer-linux-x64": "2.2.6",
+        "@prettier-apex/apex-ast-serializer-win32-x64": "2.2.6"
     }
 }
