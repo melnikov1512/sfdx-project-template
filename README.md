@@ -18,7 +18,7 @@ Clone this template, add your metadata to `force-app/`, configure the `SF_AUTH_U
 ## What's included
 
 - **Linting** — ESLint flat config for LWC and Aura JS (`@salesforce/eslint-config-lwc`)
-- **Formatting** — Prettier with Apex and XML plugins; enforced in CI and on pre-commit
+- **Formatting** — Prettier with Apex and XML plugins; 4-space indent for all code files; enforced in CI and on pre-commit
 - **LWC unit tests** — `@salesforce/sfdx-lwc-jest` with watch, debug, and coverage modes
 - **Apex SAST** — `sf code-analyzer` (SARIF output) on every PR; blocks on `error`-level findings
 - **Pre-commit hooks** — Husky + lint-staged: format → lint → related LWC tests, automatically
@@ -58,6 +58,10 @@ sfdx-project-template/
 │   └── main/default/          # Add your Salesforce metadata here
 ├── config/
 │   └── project-scratch-def.json
+├── docs/
+│   └── plans/                 # Implementation plans
+├── scripts/
+│   └── deploy.js              # Local deploy helper (mirrors deploy.yml)
 ├── .github/
 │   ├── agents/                # 18 Copilot custom agents
 │   ├── instructions/          # Auto-applied Copilot instruction files
@@ -65,6 +69,7 @@ sfdx-project-template/
 │   ├── skills/                # 19 on-demand Copilot skills
 │   └── workflows/             # CI/CD pipeline definitions
 ├── sfdx-project.json          # API v66.0, package dir: force-app
+├── .prettierrc                # Prettier config: 4-space indent, Apex + XML plugins
 ├── eslint.config.js
 ├── jest.config.js
 └── package.json

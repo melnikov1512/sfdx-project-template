@@ -2,9 +2,5 @@
 IlluminatedCloud/
 .npm-cache/
 node_modules/
-.github/agents/
-.github/workflows/ai-pr-summary.yml
-.github/workflows/ai-test-recommendations.yml
-AGENTS.md
-eslint.config.js
-jest.config.js
+.github/
+.husky/

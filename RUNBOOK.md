@@ -110,8 +110,8 @@ Job `Salesforce Metadata Validate` finished with an error.
 
 1. Verify that `SF_AUTH_URL` is configured in the repository.
 2. Open artifact `salesforce-validate-<run_id>` and inspect:
-   - `.artifacts/salesforce-validate/changed-files.txt`
-   - `.artifacts/salesforce-validate/validate.log`
+    - `.artifacts/salesforce-validate/changed-files.txt`
+    - `.artifacts/salesforce-validate/validate.log`
 3. Fix metadata issues and re-run PR checks.
 
 ---
@@ -133,8 +133,8 @@ The check is intentionally skipped if:
 
 - If this PR does not include Salesforce metadata, no action is needed.
 - If validation was expected, verify the metadata root path:
-  - default is `force-app`;
-  - or the value of repository variable `SFDX_METADATA_DIR`.
+    - default is `force-app`;
+    - or the value of repository variable `SFDX_METADATA_DIR`.
 
 ---
 
@@ -164,11 +164,11 @@ Job `Salesforce Code Analysis` runs in PR check and reports findings in SARIF fo
 ### Common causes and handling
 
 - **Real findings** (CRUD/FLS, SOQL injection, best practices, PMD/ESLint Salesforce rules):
-  - Review the `code-analysis-<run_id>` artifact (`results.sarif`).
-  - Fix the underlying issue and re-run checks.
+    - Review the `code-analysis-<run_id>` artifact (`results.sarif`).
+    - Fix the underlying issue and re-run checks.
 - **False positive** (rule too broad, context-specific safety, intentional pattern):
-  - Document the reason and severity (e.g., "intentional: test data factory").
-  - Follow Section 13 (exception lifecycle) if immediate fix is not possible.
+    - Document the reason and severity (e.g., "intentional: test data factory").
+    - Follow Section 13 (exception lifecycle) if immediate fix is not possible.
 
 ### Severity thresholds and merge policy
 
@@ -227,9 +227,9 @@ Job `Secret Scan (Fail on Findings)` fails in `.github/workflows/security-gates.
 1. Open artifact `secret-scan-<run_id>` and review `gitleaks.sarif`.
 2. Confirm whether the finding is a real secret (token, key, password, private key) or false positive.
 3. If real:
-   - immediately rotate/revoke the exposed credential;
-   - remove secret from repository history if required by policy;
-   - push a remediation commit and re-run checks.
+    - immediately rotate/revoke the exposed credential;
+    - remove secret from repository history if required by policy;
+    - push a remediation commit and re-run checks.
 4. If false positive, follow Section 13 (exception lifecycle) and add an owner for cleanup.
 
 ### SLA
@@ -276,12 +276,12 @@ Job `CodeQL Analysis (JavaScript)` fails in `.github/workflows/codeql.yml`.
 1. Open the **Security** tab → **Code scanning alerts** to view annotated findings.
 2. Review the finding category (CWE ID, rule name) and the affected file/line in the PR diff.
 3. If real:
-   - Fix the root cause (e.g., sanitise input, remove insecure pattern).
-   - Re-push and wait for re-analysis.
+    - Fix the root cause (e.g., sanitise input, remove insecure pattern).
+    - Re-push and wait for re-analysis.
 4. If false positive:
-   - Dismiss via the Security tab UI (requires write access).
-   - Document reason in the dismissal form.
-   - No PR block after dismissal, but keep a record per Section 13.
+    - Dismiss via the Security tab UI (requires write access).
+    - Document reason in the dismissal form.
+    - No PR block after dismissal, but keep a record per Section 13.
 
 ### Fail policy
 
@@ -336,6 +336,9 @@ All commits merged to `main` **must** follow [Conventional Commits](https://www.
 
 [optional footer(s)]
 ```
+
+> [!NOTE]
+> There is no automated CHANGELOG generation. Release Please was removed from this template. Maintain a CHANGELOG manually if required, or adopt a changelog tool separately.
 
 Common types and their changelog visibility:
 
@@ -462,14 +465,14 @@ Rollback is performed by re-deploying the previous working version.
 
 1. Find the previous successful deploy in `.artifacts/deploy/deploy.log` or GitHub deployments.
 2. Identify the Git commit/tag of the last known-good version:
-   ```bash
-   git log --oneline --decorate origin/main | head -20
-   ```
+    ```bash
+    git log --oneline --decorate origin/main | head -20
+    ```
 3. Create a hotfix branch from the known-good tag:
-   ```bash
-   git checkout -b hotfix/<issue-id>-rollback <previous-good-tag>
-   git push origin hotfix/<issue-id>-rollback
-   ```
+    ```bash
+    git checkout -b hotfix/<issue-id>-rollback <previous-good-tag>
+    git push origin hotfix/<issue-id>-rollback
+    ```
 4. Open a PR to `main` and merge (fast-track).
 5. Run deploy workflow with `environment=staging` → verify it works.
 6. Run deploy workflow with `environment=production`.
@@ -508,7 +511,7 @@ sf project deploy start \
 
 ### Related sections
 
-- Hotfix process: Section 16
+- Hotfix process: Section 15
 - Security gate failures: Section 10–13
 - Exception lifecycle: Section 13
 
@@ -550,15 +553,15 @@ The workflow posts a collapsible comment structured as follows:
 1. **Advisory disclaimer** — a notice at the top stating that the suggestions are AI-generated and are not a replacement for the project's required test suite.
 2. **Recommendations table** — one row per changed file:
 
-   | File                                       | Type | Suggested Test Cases                                                        |
-   | ------------------------------------------ | ---- | --------------------------------------------------------------------------- |
-   | `force-app/.../myComponent/myComponent.js` | LWC  | Unit test for `connectedCallback`, mock wire adapter for `@wire(getRecord)` |
-   | `force-app/.../MyClass.cls`                | Apex | Positive/negative unit tests, bulk data test (200+ records)                 |
+    | File                                       | Type | Suggested Test Cases                                                        |
+    | ------------------------------------------ | ---- | --------------------------------------------------------------------------- |
+    | `force-app/.../myComponent/myComponent.js` | LWC  | Unit test for `connectedCallback`, mock wire adapter for `@wire(getRecord)` |
+    | `force-app/.../MyClass.cls`                | Apex | Positive/negative unit tests, bulk data test (200+ records)                 |
 
 3. **Overall risk level** — a single indicator at the bottom of the comment:
-   - 🟢 **Low** — config or metadata-only changes, no logic touched.
-   - 🟡 **Medium** — logic changes in one or a few files.
-   - 🔴 **High** — widespread changes, shared utilities, or security-sensitive code.
+    - 🟢 **Low** — config or metadata-only changes, no logic touched.
+    - 🟡 **Medium** — logic changes in one or a few files.
+    - 🔴 **High** — widespread changes, shared utilities, or security-sensitive code.
 4. **Fallback mode** — when the AI model is unavailable the comment shows the changed file list only, without analysis (see [When AI is unavailable](#when-ai-is-unavailable) below).
 
 ### File type → test strategy
