@@ -37,13 +37,25 @@ Clone this template, add your metadata to `force-app/`, configure the `SF_AUTH_U
 ## Getting started
 
 ```bash
-# 1. Install dependencies
+# 1. Clone the repo and install dependencies
+git clone https://github.com/melnikov1512/sfdx-project-template.git
+cd sfdx-project-template
 npm install
 
-# 2. Authenticate your org
-sf org login web --alias my-org --set-default
+# 2. Authenticate your Dev Hub
+sf org login web --alias devhub --set-default-dev-hub
 
-# 3. Run full local validation
+# 3. Create a scratch org
+sf org create scratch \
+  --definition-file config/project-scratch-def.json \
+  --alias dev \
+  --duration-days 30 \
+  --set-default
+
+# 4. Deploy metadata to the scratch org
+npm run deploy -- --target-org dev
+
+# 5. Validate everything looks good
 npm run validate
 ```
 
@@ -91,6 +103,7 @@ sfdx-project-template/
 | `npm run test`              | LWC CI + Apex tests                       |
 | `npm run validate`          | Lint + format check + LWC CI + Apex tests |
 | `npm run lint:apex`         | Salesforce SAST via `sf code-analyzer`    |
+| `npm run deploy`            | Deploy to an org (see Local deploy below) |
 
 ### Scratch org workflow
 
@@ -102,23 +115,47 @@ sf org create scratch \
   --duration-days 30 \
   --set-default
 
-# Deploy source
-sf project deploy start --source-dir force-app
+# Deploy source using the local deploy helper
+npm run deploy -- --target-org dev
 
 # Open in browser
 sf org open
 ```
 
+### Local deploy
+
+`npm run deploy` is a thin wrapper around `sf project deploy start/validate` that saves results to `.artifacts/deploy/`.
+
+```bash
+# Deploy to an org (authenticated alias required)
+npm run deploy -- --target-org <alias>
+
+# Validate only — no actual deploy
+npm run deploy -- --target-org <alias> --validate-only
+
+# Deploy and run all local Apex tests
+npm run deploy -- --target-org <alias> --tests
+
+# Deploy a custom metadata directory
+npm run deploy -- --target-org <alias> --source-dir force-app/main/default/classes
+
+# Increase wait timeout (minutes, default: 30)
+npm run deploy -- --target-org <alias> --wait 60
+```
+
+> [!NOTE]
+> Results and logs are written to `.artifacts/deploy/results/`. For CI/CD-governed deploys to QA and higher envs, use the **Actions → Deploy** workflow instead — see `RUNBOOK.md` §17.
+
 ## CI/CD pipelines
 
-| Workflow                      | Trigger                      | What it does                                                        |
-| ----------------------------- | ---------------------------- | ------------------------------------------------------------------- |
-| `pr-check.yml`                | PR → `main`                  | Lint, format check, LWC tests, Apex SAST, metadata validate-only    |
-| `security-gates.yml`          | PR + push `main` + weekly    | Secret scanning, dependency audit (blocks on `high`/`critical`)     |
-| `ai-pr-summary.yml`           | PR opened/updated            | AI-generated PR summary via GitHub Models (`gpt-4o-mini`)           |
-| `ai-test-recommendations.yml` | PR opened/updated            | AI-suggested test improvements                                      |
-| `codeql.yml`                  | PR + push `main`             | CodeQL static analysis                                              |
-| `deploy.yml`                  | Manual (`workflow_dispatch`) | Deploy any branch to `staging` or `production` with a validate gate |
+| Workflow                      | Trigger                      | What it does                                                     |
+| ----------------------------- | ---------------------------- | ---------------------------------------------------------------- |
+| `pr-check.yml`                | PR → `main`                  | Lint, format check, LWC tests, Apex SAST, metadata validate-only |
+| `security-gates.yml`          | PR + push `main` + weekly    | Secret scanning, dependency audit (blocks on `high`/`critical`)  |
+| `ai-pr-summary.yml`           | PR opened/updated            | AI-generated PR summary via GitHub Models (`gpt-4o-mini`)        |
+| `ai-test-recommendations.yml` | PR opened/updated            | AI-suggested test improvements                                   |
+| `codeql.yml`                  | PR + push `main`             | CodeQL static analysis                                           |
+| `deploy.yml`                  | Manual (`workflow_dispatch`) | Deploy any branch to QA and higher envs with a validate gate     |
 
 > [!IMPORTANT]
 > Metadata validation in CI requires the `SF_AUTH_URL` repository secret. PRs that touch `force-app/` (or the path set in `SFDX_METADATA_DIR`) will fail explicitly if the secret is absent.
@@ -128,10 +165,10 @@ sf org open
 
 ## Deployment
 
-Deployments to `staging` and `production` are triggered manually via **Actions → Deploy → Run workflow**.
+Deployments to QA and higher envs are triggered manually via **Actions → Deploy → Run workflow**.
 
 - A validate-only gate always runs before the actual deploy.
-- The `production` environment requires Required Reviewers and enforces a `main`-only branch policy.
+- Higher environments require Required Reviewers and enforce a `main`-only branch policy.
 - For rollback steps, see `RUNBOOK.md` §17.
 
 ## GitHub Copilot integration

@@ -606,3 +606,60 @@ Specific disable options for `ai-test-recommendations`:
 - **All PRs (temporary)** — go to **Settings → Actions → General → Workflows**, find `AI Test Recommendations`, and click **Disable workflow**.
 - **All PRs (via repository variable)** — add a repository variable `DISABLE_AI_TEST_REC` with value `true`. The workflow checks this variable at startup and skips execution when it is set.
 - **Permanent removal** — delete or rename `.github/workflows/ai-test-recommendations.yml` via a hotfix branch (Section 16); commit with `ci: remove AI test recommendations workflow`.
+
+---
+
+## 20) Local deploy with `npm run deploy`
+
+### What it is
+
+`scripts/deploy.js` is a local Node.js wrapper around `sf project deploy start/validate`. It is intended for deploying directly from your workstation to any authenticated org — dev sandboxes, scratch orgs, or QA environments.
+
+For CI/CD-governed deploys to `staging` and `production`, use the **Actions → Deploy** workflow (Section 17) instead.
+
+### Prerequisites
+
+- Salesforce CLI (`sf`) installed and available in `PATH`.
+- Target org authenticated: `sf org login web --alias <alias>` or `sf org login sfdx-url`.
+
+### Options
+
+| Flag              | Short | Default      | Description                                            |
+| ----------------- | ----- | ------------ | ------------------------------------------------------ |
+| `--target-org`    | `-o`  | _(required)_ | Authenticated org alias or username                    |
+| `--validate-only` |       | `false`      | Run `sf project deploy validate` — no actual deploy    |
+| `--tests`         | `-t`  | `false`      | Add `--test-level RunLocalTests` to the deploy command |
+| `--source-dir`    |       | `force-app`  | Metadata source directory to deploy                    |
+| `--wait`          |       | `30`         | Minutes to wait for the operation                      |
+
+### Examples
+
+```bash
+# Deploy all metadata to a dev org
+npm run deploy -- --target-org my-dev-org
+
+# Validate only — dry run without deploying
+npm run deploy -- --target-org my-dev-org --validate-only
+
+# Deploy and run all local Apex tests
+npm run deploy -- --target-org my-dev-org --tests
+
+# Deploy a subset of metadata
+npm run deploy -- --target-org my-dev-org --source-dir force-app/main/default/classes
+
+# Increase wait timeout for large deployments
+npm run deploy -- --target-org my-dev-org --wait 60
+```
+
+### Artifacts
+
+Results are written to `.artifacts/deploy/results/` (created automatically). This directory is gitignored.
+
+### Troubleshooting
+
+| Symptom                                         | Cause                                           | Fix                                                                     |
+| ----------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------- |
+| `Error: --target-org is required`               | Flag not passed                                 | Add `-- --target-org <alias>` (note the `--` separator)                 |
+| `Error: source directory 'force-app' not found` | Wrong working directory or missing `force-app/` | Run from repo root; ensure metadata exists                              |
+| `failed to run sf: ...`                         | `sf` CLI not in `PATH`                          | Install Salesforce CLI or run `npm run validate` to confirm environment |
+| Deploy times out                                | Large deployment or slow org                    | Add `--wait 60` (or higher)                                             |

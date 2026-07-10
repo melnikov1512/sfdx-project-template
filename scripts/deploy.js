@@ -88,12 +88,12 @@ const sfArgs = [
     targetOrg,
     '--wait',
     String(wait),
-    '--results-dir',
-    path.join(artifactsDir, 'results'),
     '--verbose'
 ];
 
-if (tests) sfArgs.push('--test-level', 'RunLocalTests');
+if (tests) {
+    sfArgs.push('--test-level', 'RunLocalTests', '--results-dir', path.join(artifactsDir, 'results'), '--junit');
+}
 
 const action = validateOnly ? 'Validating' : 'Deploying';
 console.log(`▶ ${action}: org=${targetOrg} source=${sourceDir} wait=${wait}m tests=${tests}`);
