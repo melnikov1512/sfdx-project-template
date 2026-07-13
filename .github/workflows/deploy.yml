@@ -8,13 +8,6 @@ on:
         required: true
         default: "main"
         type: string
-      environment:
-        description: "Target environment"
-        required: true
-        type: choice
-        options:
-          - staging
-          - production
       dry_run:
         description: "Dry run — validate only, skip deploy"
         required: false
@@ -26,18 +19,19 @@ permissions:
   deployments: write
 
 concurrency:
-  group: deploy-${{ inputs.environment }}
+  group: deploy-qa-org
   cancel-in-progress: false
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Job 1: Validate — runs without environment protection so it never blocks
-  #         on reviewer approval. Uses repo-level secrets per environment.
+  # Job 1: Validate — runs inside QA_ORG environment. No protection rules —
+  #         never blocks on reviewer approval.
   # ---------------------------------------------------------------------------
   validate:
     name: Validate Salesforce Metadata
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: QA_ORG
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -74,23 +68,10 @@ jobs:
           echo "force-app not found — nothing to validate."
           mkdir -p .artifacts/deploy-validate
 
-      - name: Ensure Salesforce auth secret is configured
-        if: steps.check-metadata.outputs.has_metadata == 'true'
-        env:
-          # Repo-level secrets: SF_AUTH_URL_STAGING and SF_AUTH_URL_PRODUCTION
-          # These allow validate to run without requiring environment approval.
-          SF_AUTH_URL: ${{ inputs.environment == 'production' && secrets.SF_AUTH_URL_PRODUCTION || secrets.SF_AUTH_URL_STAGING }}
-        run: |
-          set -euo pipefail
-          if [ -z "${SF_AUTH_URL:-}" ]; then
-            echo "::error title=Missing auth secret::Repository secret SF_AUTH_URL_${{ inputs.environment == 'production' && 'PRODUCTION' || 'STAGING' }} is not configured. Add it in Settings → Secrets → Actions."
-            exit 1
-          fi
-
       - name: Authenticate Salesforce org
         if: steps.check-metadata.outputs.has_metadata == 'true'
         env:
-          SF_AUTH_URL: ${{ inputs.environment == 'production' && secrets.SF_AUTH_URL_PRODUCTION || secrets.SF_AUTH_URL_STAGING }}
+          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
         run: |
           set -euo pipefail
 
@@ -100,41 +81,31 @@ jobs:
 
           sf org login sfdx-url \
             --sfdx-url-file "$auth_file" \
-            --alias deploy-validate-org \
+            --alias ci-validate-org \
             --set-default
 
       - name: Run validate-only deploy
         if: steps.check-metadata.outputs.has_metadata == 'true'
-        run: |
-          set -euo pipefail
-
-          mkdir -p .artifacts/deploy-validate/results
-
-          sf project deploy validate \
-            --source-dir force-app \
-            --target-org deploy-validate-org \
-            --wait 30 \
-            --results-dir .artifacts/deploy-validate/results \
-            --verbose 2>&1 | tee .artifacts/deploy-validate/validate.log
+        run: npm run deploy -- --target-org ci-validate-org --validate-only
 
       - name: Upload validate artifacts
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: deploy-validate-${{ github.run_id }}
-          path: .artifacts/deploy-validate
+          path: .artifacts/deploy
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # Job 2: Deploy — runs inside GitHub Environment, gated by environment
-  #         protection rules. Uses environment-scoped secret SF_AUTH_URL.
+  # Job 2: Deploy — runs inside QA_ORG environment.
+  #         Uses environment-scoped secret SF_AUTH_URL.
   # ---------------------------------------------------------------------------
   deploy:
-    name: Deploy to ${{ inputs.environment }}
+    name: Deploy to QA_ORG
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: validate
-    environment: ${{ inputs.environment }}
+    environment: QA_ORG
     if: ${{ !inputs.dry_run }}
     steps:
       - name: Checkout
@@ -156,15 +127,14 @@ jobs:
           sf --version
 
       - name: Authenticate Salesforce org
-        # SF_AUTH_URL is an environment-scoped secret — each GitHub Environment
-        # (staging / production) stores its own value, providing credential isolation.
+        # SF_AUTH_URL is an environment-scoped secret from QA_ORG environment.
         env:
           SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
         run: |
           set -euo pipefail
 
           if [ -z "${SF_AUTH_URL:-}" ]; then
-            echo "::error title=Missing auth secret::Environment secret SF_AUTH_URL is not set for the '${{ inputs.environment }}' environment. Add it in Settings → Environments → ${{ inputs.environment }} → Secrets."
+            echo "::error title=Missing auth secret::Environment secret SF_AUTH_URL is not set for the 'QA_ORG' environment. Add it in Settings → Environments → QA_ORG → Secrets."
             exit 1
           fi
 
@@ -174,22 +144,12 @@ jobs:
 
           sf org login sfdx-url \
             --sfdx-url-file "$auth_file" \
-            --alias deploy-org \
+            --alias ci-deploy-org \
             --set-default
 
       - name: Deploy Salesforce metadata
         id: deploy
-        run: |
-          set -euo pipefail
-
-          mkdir -p .artifacts/deploy/results
-
-          sf project deploy start \
-            --source-dir force-app \
-            --target-org deploy-org \
-            --wait 30 \
-            --results-dir .artifacts/deploy/results \
-            --verbose 2>&1 | tee .artifacts/deploy/deploy.log
+        run: npm run deploy -- --target-org ci-deploy-org
 
       - name: Capture deploy ID
         if: always()
@@ -227,7 +187,7 @@ jobs:
 
           | Field       | Value |
           |-------------|-------|
-          | Environment | \`${{ inputs.environment }}\` |
+          | Environment | \`QA_ORG\` |
           | Version     | \`${version}\` |
           | Deploy ID   | \`${deploy_id}\` |
           | Triggered   | \`${{ github.actor }}\` |
@@ -245,7 +205,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: deploy-${{ inputs.environment }}-${{ github.run_id }}
+          name: deploy-qa-org-${{ github.run_id }}
           path: .artifacts/deploy
           if-no-files-found: ignore
 
@@ -267,13 +227,12 @@ jobs:
 
           | Field       | Value |
           |-------------|-------|
-          | Environment | `${{ inputs.environment }}` |
+          | Environment | `QA_ORG` |
           | Dry run     | `true` |
 
           ### To deploy for real
 
           Re-run this workflow from **Actions → Deploy → Run workflow** with:
-          - `environment`: `${{ inputs.environment }}`
           - `dry_run`: **unchecked** (false)
 
           EOF
