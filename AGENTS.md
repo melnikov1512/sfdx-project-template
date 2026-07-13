@@ -59,6 +59,7 @@
 - PR CI also runs `.github/workflows/pr-check.yml`; when a PR changes files under `force-app/` (or `SFDX_METADATA_DIR`), it adds a Salesforce metadata validate-only gate.
 - Security checks run via `.github/workflows/security-gates.yml` on every PR to `main` and weekly (CodeQL, secret scan, dependency audit).
 - AI-assisted PR summaries run via `.github/workflows/ai-pr-summary.yml`; advisory only, never blocks merge. Governed by `docs/AI-GOVERNANCE.md`.
+- AI test recommendations run via `.github/workflows/ai-test-recommendations.yml` on every PR to `main`; posts a file-by-file test checklist comment using GitHub Models (gpt-4o-mini); advisory only, never blocks merge.
 
 ## Project-Specific Conventions
 
