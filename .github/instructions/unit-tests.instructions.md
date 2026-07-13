@@ -24,28 +24,30 @@ applyTo: "force-app/main/default/classes/tests/**/*.cls"
 
 ## Test Method Naming Convention
 
-**Format**: `[methodName]Test_[optionalCase]`
+**Format**: `[methodName]Test[OptionalCase]`
+
+> PMD MethodNamingConventions enforces `[a-z][a-zA-Z0-9]*` — underscores are **not allowed**.
 
 **Examples**:
 ```apex
 @isTest
-static void getRecordDataTest_Success() { }
+static void getRecordDataTestSuccess() { }
 
 @isTest
-static void getRecordDataTest_InvalidId() { }
+static void getRecordDataTestInvalidId() { }
 
 @isTest
-static void processRecordTest_Success() { }
+static void processRecordTestSuccess() { }
 
 @isTest
-static void processRecordTest_BulkOperation() { }
+static void processRecordTestBulkOperation() { }
 ```
 
 **Rules**:
 - Start with the exact method name being tested
 - Add `Test` suffix
-- Optionally add `_[Case]` to describe the specific scenario
-- Use PascalCase for case names (e.g., `_Success`, `_WithRelatedRecord`, `_BulkOperation`)
+- Optionally append the case in PascalCase directly (e.g., `Success`, `WithRelatedRecord`, `BulkOperation`)
+- **No underscores** — PMD rejects them
 
 ---
 
@@ -162,7 +164,7 @@ private class ControllerNameTest {
      * Verifies that [expected behavior].
      */
     @isTest
-    static void methodNameTest_Case() {
+    static void methodNameTestCase() {
         User adminUser = TestFactory.getAdminUser();
 
         // ✅ Test-specific data setup BEFORE System.runAs()
@@ -241,7 +243,7 @@ Assert.isFalse(list.isEmpty(), 'List should not be empty');
 
 ```apex
 @isTest
-static void getRecordDataTest_Success() {
+static void getRecordDataTestSuccess() {
     User adminUser = TestFactory.getAdminUser();
 
     System.runAs(adminUser) {
@@ -261,7 +263,7 @@ static void getRecordDataTest_Success() {
 
 ```apex
 @isTest
-static void methodNameTest_ExceptionCase() {
+static void methodNameTestExceptionCase() {
     User adminUser = TestFactory.getAdminUser();
 
     System.runAs(adminUser) {
@@ -288,7 +290,7 @@ static void methodNameTest_ExceptionCase() {
 
 ```apex
 @isTest
-static void methodNameTest_BulkOperation() {
+static void methodNameTestBulkOperation() {
     User adminUser = TestFactory.getAdminUser();
 
     List<MyObject__c> records = new List<MyObject__c>();
@@ -320,7 +322,7 @@ static void methodNameTest_BulkOperation() {
 - Test entry-point classes (controllers, global classes, APIs, batches, schedulers, queueables, invocables) through their public interface
 - Test service and selector/DML module classes independently when they contain isolated logic
 - Use overloaded TestFactory methods for different scenarios
-- Follow naming convention: `[methodName]Test_[Case]`
+- Follow naming convention: `[methodName]Test[Case]` (camelCase, no underscores)
 - Add ApexDoc to test class and every test method
 
 ### ❌ DON'T
@@ -349,7 +351,7 @@ static void setupData() {
 **Test Method Structure**:
 ```apex
 @isTest
-static void [methodName]Test_[Case]() {
+static void [methodName]TestCase() {
     User adminUser = TestFactory.getAdminUser();
 
     // Test-specific data setup BEFORE runAs

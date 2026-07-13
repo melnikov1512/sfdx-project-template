@@ -9,7 +9,7 @@
 
 _Production-ready Salesforce DX starter with quality tooling, CI/CD, and GitHub Copilot AI built in_
 
-[Getting Started](#getting-started) • [Commands](#commands) • [CI/CD](#cicd-pipelines) • [Copilot Integration](#github-copilot-integration) • [Troubleshooting](#troubleshooting)
+[Getting Started](#getting-started) • [Commands](#commands) • [CI/CD](#cicd-pipelines) • [Copilot Integration](#github-copilot-integration) • [Commit Policy](#commit-policy) • [Troubleshooting](#troubleshooting)
 
 </div>
 
@@ -189,6 +189,86 @@ The `.github/` directory ships a complete Copilot workspace setup:
 **Skills** — 19 on-demand workflows: `create-implementation-plan`, `refactor-plan`, `architecture-blueprint-generator`, `github-issues`, Tavily search/research/crawl, and more.
 
 **Prompt files** — reusable prompts for common Salesforce tasks (e.g., `create-exception-handler`).
+
+## Commit policy
+
+This project follows the [Conventional Commits](https://www.conventionalcommits.org/) specification.
+
+### Format
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+- **Description**: present tense, imperative mood, max 72 characters (`add` not `added`)
+- **Body**: explain _why_, not _what_ — wrap at 72 characters
+- **Footer**: reference issues (`Closes #123`) or breaking changes
+
+### Types
+
+| Type       | When to use                                      |
+| ---------- | ------------------------------------------------ |
+| `feat`     | New feature or capability                        |
+| `fix`      | Bug fix                                          |
+| `docs`     | Documentation only (README, AGENTS.md, comments) |
+| `style`    | Formatting, whitespace — no logic change         |
+| `refactor` | Code restructure — no new feature, no bug fix    |
+| `perf`     | Performance improvement                          |
+| `test`     | Add or update tests / test scripts               |
+| `build`    | Dependencies, package.json, npm scripts          |
+| `ci`       | CI/CD workflow changes                           |
+| `chore`    | Config, tooling, minor housekeeping              |
+| `revert`   | Revert a previous commit                         |
+
+### Scopes
+
+| Scope      | Maps to                                               |
+| ---------- | ----------------------------------------------------- |
+| `apex`     | `force-app/**/classes/**`, `force-app/**/triggers/**` |
+| `lwc`      | `force-app/**/lwc/**`                                 |
+| `aura`     | `force-app/**/aura/**`                                |
+| `metadata` | Other Salesforce metadata under `force-app/`          |
+| `ci`       | `.github/workflows/**`                                |
+| `copilot`  | `.github/agents/**`, `instructions/**`, `skills/**`   |
+| `config`   | `sfdx-project.json`, `config/**`, `eslint.config.js`  |
+| `scripts`  | `scripts/**`                                          |
+| `docs`     | `docs/**`, `RUNBOOK.md`, `README.md`                  |
+| `deps`     | `package.json`, `package-lock.json`                   |
+
+Omit scope when the change spans multiple unrelated areas.
+
+### Breaking changes
+
+```
+feat(apex)!: rename AccountSelector.getRecentAccounts to findRecentAccounts
+
+BREAKING CHANGE: callers must update method references before deploying
+```
+
+### Examples
+
+```
+feat(apex): add AccountSelector with getRecentAccounts query
+test(apex): add AccountSelectorTest covering limit and ordering
+fix(ci): use RunLocalTests for validate-only deploys
+refactor(lwc): extract date formatting into shared utility
+docs: add commit policy section to README
+build(deps): bump @salesforce/eslint-config-lwc to 4.x
+ci: add Apex test coverage gate to pr-check workflow
+```
+
+### Rules
+
+1. One logical change per commit — if the diff spans unrelated concerns, split it.
+2. Never commit secrets — skip `.env`, auth files, or any credential material.
+3. Do not use `--no-verify` unless explicitly required and documented.
+4. Do not force-push to `main`.
+
+---
 
 ## Troubleshooting
 
