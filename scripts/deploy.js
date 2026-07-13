@@ -88,7 +88,8 @@ const sfArgs = [
     targetOrg,
     '--wait',
     String(wait),
-    '--verbose'
+    '--verbose',
+    '--ignore-conflicts'
 ];
 
 if (tests) {
