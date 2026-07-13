@@ -3,6 +3,13 @@ name: Deploy
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        default: "QA_ORG"
+        options:
+          - QA_ORG
       ref:
         description: "Branch or tag to deploy"
         required: true
@@ -19,19 +26,19 @@ permissions:
   deployments: write
 
 concurrency:
-  group: deploy-qa-org
+  group: deploy-${{ inputs.environment }}
   cancel-in-progress: false
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Job 1: Validate — runs inside QA_ORG environment. No protection rules —
+  # Job 1: Validate — runs inside the selected environment. No protection rules —
   #         never blocks on reviewer approval.
   # ---------------------------------------------------------------------------
   validate:
     name: Validate Salesforce Metadata
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: QA_ORG
+    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -97,15 +104,15 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # Job 2: Deploy — runs inside QA_ORG environment.
+  # Job 2: Deploy — runs inside the selected environment.
   #         Uses environment-scoped secret SF_AUTH_URL.
   # ---------------------------------------------------------------------------
   deploy:
-    name: Deploy to QA_ORG
+    name: Deploy to ${{ inputs.environment }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: validate
-    environment: QA_ORG
+    environment: ${{ inputs.environment }}
     if: ${{ !inputs.dry_run }}
     steps:
       - name: Checkout
@@ -127,14 +134,14 @@ jobs:
           sf --version
 
       - name: Authenticate Salesforce org
-        # SF_AUTH_URL is an environment-scoped secret from QA_ORG environment.
+        # SF_AUTH_URL is an environment-scoped secret from the selected environment.
         env:
           SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
         run: |
           set -euo pipefail
 
           if [ -z "${SF_AUTH_URL:-}" ]; then
-            echo "::error title=Missing auth secret::Environment secret SF_AUTH_URL is not set for the 'QA_ORG' environment. Add it in Settings → Environments → QA_ORG → Secrets."
+            echo "::error title=Missing auth secret::Environment secret SF_AUTH_URL is not set for the '${{ inputs.environment }}' environment. Add it in Settings → Environments → ${{ inputs.environment }} → Secrets."
             exit 1
           fi
 
@@ -187,7 +194,7 @@ jobs:
 
           | Field       | Value |
           |-------------|-------|
-          | Environment | \`QA_ORG\` |
+          | Environment | \`${{ inputs.environment }}\` |
           | Version     | \`${version}\` |
           | Deploy ID   | \`${deploy_id}\` |
           | Triggered   | \`${{ github.actor }}\` |
@@ -205,7 +212,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: deploy-qa-org-${{ github.run_id }}
+          name: deploy-${{ inputs.environment }}-${{ github.run_id }}
           path: .artifacts/deploy
           if-no-files-found: ignore
 
@@ -227,7 +234,7 @@ jobs:
 
           | Field       | Value |
           |-------------|-------|
-          | Environment | `QA_ORG` |
+          | Environment | `${{ inputs.environment }}` |
           | Dry run     | `true` |
 
           ### To deploy for real
