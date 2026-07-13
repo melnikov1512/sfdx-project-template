@@ -7,7 +7,7 @@
 //
 // Options:
 //   --target-org, -o   (required) Authenticated org alias
-//   --tests,      -t   Add --test-level RunLocalTests
+//   --tests,      -t   Add --test-level RunLocalTests (validate) / RunRelevantTests (deploy)
 //   --validate-only    Run sf project deploy validate instead of start
 //   --source-dir       Metadata source directory (default: force-app)
 //   --wait             Minutes to wait for the operation (default: 30)
@@ -92,7 +92,10 @@ const sfArgs = [
 ];
 
 if (tests) {
-    sfArgs.push('--test-level', 'RunRelevantTests', '--results-dir', path.join(artifactsDir, 'results'), '--junit');
+    // validate-only must use RunLocalTests to enforce org-wide 75% coverage;
+    // RunRelevantTests skips classes with no test references, silently passing uncovered code.
+    const testLevel = validateOnly ? 'RunLocalTests' : 'RunRelevantTests';
+    sfArgs.push('--test-level', testLevel, '--results-dir', path.join(artifactsDir, 'results'), '--junit');
 }
 
 if (!validateOnly) {
