@@ -92,7 +92,7 @@ const sfArgs = [
 ];
 
 if (tests) {
-    sfArgs.push('--test-level', 'RunLocalTests', '--results-dir', path.join(artifactsDir, 'results'), '--junit');
+    sfArgs.push('--test-level', 'RunRelevantTests', '--results-dir', path.join(artifactsDir, 'results'), '--junit');
 }
 
 if (!validateOnly) {
