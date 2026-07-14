@@ -72,6 +72,9 @@
 - `.forceignore` excludes test folders like `**/__tests__/**` from source push/pull flows; keep deploy intent in mind when adding test assets.
 - GitHub Actions metadata validation expects repository secret `SF_AUTH_URL`; optional repository variable `SFDX_METADATA_DIR` changes the metadata root without code changes.
 - Manual deploy workflow (`.github/workflows/deploy.yml`) targets `staging` or `production` environments with a `dry_run` flag. Requires **repository secrets** `SF_AUTH_URL_STAGING` / `SF_AUTH_URL_PRODUCTION` for validation and **environment-scoped secret** `SF_AUTH_URL` per GitHub Environment for actual deploy.
+- **Node.js scripts** (`scripts/**/*.js`): always CJS, `'use strict'` required, `node:` prefix for all built-in requires, `parseArgs` from `node:util` for CLI argument parsing (Node 18.11+), `spawnSync` with `shell: false` + `stdio: 'inherit'` for CLI wrappers, `fatal()` helper at bottom of file. See `.github/instructions/node-scripts.instructions.md`.
+- **ESLint coverage**: `scripts/**/*.js` and `*.config.js` (root) are covered by a `globals.node` + `eslintJs/recommended` block in `eslint.config.js`; `scripts/**/*.js` is also in the `lint-staged` pre-commit gate.
+- **Node.js MCP server**: no MCP server added — `bash` tool + Context7 + GitHub MCP already covers all npm/Node.js development needs (no official Node.js Foundation MCP exists as of mid-2025).
 
 ## Integration Points and Boundaries
 

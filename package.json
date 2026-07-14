@@ -21,6 +21,9 @@
         "prepare": "husky || true",
         "precommit": "lint-staged"
     },
+    "engines": {
+        "node": ">=18.11.0"
+    },
     "devDependencies": {
         "@lwc/eslint-plugin-lwc": "^3.1.0",
         "@prettier/plugin-xml": "^3.4.1",
@@ -41,6 +44,9 @@
             "prettier --write"
         ],
         "**/{aura,lwc}/**/*.js": [
+            "eslint"
+        ],
+        "scripts/**/*.js": [
             "eslint"
         ],
         "**/lwc/**": [
