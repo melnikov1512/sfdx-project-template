@@ -1,5 +1,25 @@
 # AGENTS.md
 
+## Agent Bootstrapping (CRITICAL — read first)
+
+Every agent, before starting any task, **must**:
+
+1. Read `.github/copilot-instructions.md` in full — this is the primary source of project rules, tone, and conventions.
+2. Read this file (`AGENTS.md`) in full.
+3. Load any `.github/instructions/*.instructions.md` files that match the file types you will be editing:
+
+| Instruction file                     | When to load                                                        |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| `apex-patterns.instructions.md`      | Editing `.cls` or `.trigger` files                                  |
+| `lwc-patterns.instructions.md`       | Editing LWC `.js`, `.html`, `.css`                                  |
+| `unit-tests.instructions.md`         | Writing or editing Apex test classes                                |
+| `node-scripts.instructions.md`       | Editing `scripts/**/*.js` or `*.config.js`                          |
+| `salesforce-cli.instructions.md`     | Editing `sfdx-project.json`, `config/**`, `manifest/**`             |
+| `agents-maintenance.instructions.md` | Editing `.github/workflows/**`, `package.json`, CI/tooling config   |
+| `readme-maintenance.instructions.md` | Editing `README.md`, `.github/agents/**`, `.github/instructions/**` |
+
+---
+
 ## Repository Purpose
 
 - This repository is a **Salesforce DX template** (`sfdx-project-template`) with Node-based quality tooling and no business metadata committed yet.
@@ -110,6 +130,7 @@ When working on Salesforce tasks, agents MUST use Context7 (`get-library-docs` t
 
 ## Agent Operating Guidance for This Repo
 
+- **Never create git commits unless the user explicitly asks to commit.** Making changes to files is fine; committing them is not permitted without explicit instruction.
 - Before editing, inspect `force-app/main/default/` to detect which metadata types are present in the current branch.
 - When adding new LWC/Aura code, wire it to existing npm workflows (lint, jest, prettier) and verify locally.
 - Prefer small, metadata-type-scoped changes; this template has minimal structure, so avoid introducing cross-cutting abstractions prematurely.
