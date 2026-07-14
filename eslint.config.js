@@ -32,6 +32,25 @@ module.exports = defineConfig([
         }
     },
 
+    // Node.js scripts and config files (CJS, Node globals)
+    {
+        files: ['scripts/**/*.js', '*.config.js'],
+        languageOptions: {
+            globals: {
+                ...globals.node
+            },
+            sourceType: 'commonjs',
+            ecmaVersion: 'latest'
+        },
+        plugins: {
+            eslintJs
+        },
+        extends: ['eslintJs/recommended'],
+        rules: {
+            'no-console': 'off' // scripts legitimately use console
+        }
+    },
+
     // Jest mocks configuration
     {
         files: ['**/jest-mocks/**/*.js'],
