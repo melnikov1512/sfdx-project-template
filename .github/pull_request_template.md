@@ -1,6 +1,4 @@
-## Summary
-
-<!-- Briefly describe what this PR does and why. -->
+<!-- Optional: add context not visible from the diff -->
 
 ## Type of Change
 
@@ -11,28 +9,20 @@
 - [ ] Documentation
 - [ ] Salesforce metadata change
 
-## Related Issues
+## Related Tickets
 
-<!-- Link issues closed by this PR, e.g. Closes #9 -->
-
-Closes #
+<!-- Jira, Linear, or other task tracker links -->
 
 ---
 
-## Security Self-Review Checklist
+## Security Self-Review
 
-> Complete this section for every PR. If a check is N/A, mark it and briefly explain why.
+> For exceptions, reference a time-boxed issue per [RUNBOOK.md §12](RUNBOOK.md#12).
 
-- [ ] **No secrets or credentials** — no API keys, tokens, passwords, or private keys in code, config, or test data.
-- [ ] **Input validation** — all user-supplied input is validated, sanitised, and not passed to eval / exec / innerHTML without escaping.
-- [ ] **Dependency hygiene** — new `npm` packages have no known High/Critical CVEs (`npm audit`); version is pinned or ranged conservatively.
-- [ ] **Least privilege** — new code does not request unnecessary permissions (org-wide access, admin APIs, broad SOQL without sharing enforcement).
-- [ ] **Apex CRUD/FLS** — any new or modified Apex performs proper sharing enforcement (`with sharing`, `stripInaccessible`, or explicit FLS check).
-- [ ] **Sensitive data handling** — no PII, credentials, or confidential data is logged, stored unencrypted, or returned in API responses unnecessarily.
-- [ ] **Auth / access control** — permission checks are present where expected; no guest/public access introduced unintentionally.
-- [ ] **Salesforce metadata** — no permission sets, profiles, or connected apps grant broader access than required.
-
-> If any item is checked **No** or has an exception, document the reason and reference a time-boxed exception issue per `RUNBOOK.md` Section 12.
+- [ ] No secrets, credentials, or PII in code, config, or test data
+- [ ] Dependencies: no new High/Critical CVEs (`npm audit`)
+- [ ] Apex: `with sharing` enforced; CRUD/FLS checked where applicable
+- [ ] Access control: no unintentional guest/public access; permissions scoped minimally
 
 ---
 
