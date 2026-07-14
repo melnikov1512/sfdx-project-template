@@ -2,8 +2,6 @@
 
 # Salesforce DX Project Template
 
-[![PR Check](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/pr-check.yml/badge.svg)](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/pr-check.yml)
-[![Security Gates](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/security-gates.yml/badge.svg)](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/security-gates.yml)
 ![Salesforce API](https://img.shields.io/badge/Salesforce_API-v66.0-00A1E0)
 ![Node.js](https://img.shields.io/badge/Node.js-18.11%2B-339933)
 
@@ -38,7 +36,7 @@ Clone this template, add your metadata to `force-app/`, configure the `SF_AUTH_U
 
 ```bash
 # 1. Clone the repo and install dependencies
-git clone https://github.com/melnikov1512/sfdx-project-template.git
+git clone https://github.com/your-org/your-repo.git
 cd sfdx-project-template
 npm install
 
