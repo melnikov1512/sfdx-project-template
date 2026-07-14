@@ -5,7 +5,7 @@
 [![PR Check](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/pr-check.yml/badge.svg)](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/pr-check.yml)
 [![Security Gates](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/security-gates.yml/badge.svg)](https://github.com/melnikov1512/sfdx-project-template/actions/workflows/security-gates.yml)
 ![Salesforce API](https://img.shields.io/badge/Salesforce_API-v66.0-00A1E0)
-![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933)
+![Node.js](https://img.shields.io/badge/Node.js-18.11%2B-339933)
 
 _Production-ready Salesforce DX starter with quality tooling, CI/CD, and GitHub Copilot AI built in_
 
@@ -23,13 +23,13 @@ Clone this template, add your metadata to `force-app/`, configure the `SF_AUTH_U
 - **Apex SAST** — `sf code-analyzer` (SARIF output) on every PR; blocks on `error`-level findings
 - **Pre-commit hooks** — Husky + lint-staged: format → lint → related LWC tests, automatically
 - **CI pipelines** — PR checks, metadata validate-only gate, security scanning, AI PR summaries, and guarded manual deploys
-- **GitHub Copilot** — 18 custom agents, 4 instruction files, 19 skills, and prompt files pre-wired under `.github/`
+- **GitHub Copilot** — 18 custom agents, 5 instruction files, 19 skills, and prompt files pre-wired under `.github/`
 
 ## Prerequisites
 
 | Requirement                                                                   | Version / Notes                                    |
 | ----------------------------------------------------------------------------- | -------------------------------------------------- |
-| [Node.js](https://nodejs.org)                                                 | 20+                                                |
+| [Node.js](https://nodejs.org)                                                 | 18.11+                                             |
 | [Salesforce CLI (`sf`)](https://developer.salesforce.com/tools/salesforcecli) | Latest; required for Apex tests and org operations |
 | Authenticated Salesforce org                                                  | Required for `test:apex` and deploy commands       |
 | `SF_AUTH_URL` repository secret                                               | Required for CI metadata validation                |
@@ -183,6 +183,7 @@ The `.github/` directory ships a complete Copilot workspace setup:
 | `lwc-patterns.instructions.md`   | LWC JS, HTML, and CSS                  |
 | `unit-tests.instructions.md`     | Apex test classes                      |
 | `salesforce-cli.instructions.md` | `sfdx-project.json`, config, manifests |
+| `node-scripts.instructions.md`   | `scripts/**/*.js`, `*.config.js`       |
 
 **Custom agents** — 18 specialized sub-agents including `gem-apex-specialist`, `gem-lwc-specialist`, `gem-sf-data-architect`, `gem-orchestrator`, `gem-implementer`, `gem-reviewer`, `gem-debugger`, and more.
 

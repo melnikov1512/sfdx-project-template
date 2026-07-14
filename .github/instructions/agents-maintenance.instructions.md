@@ -2,7 +2,7 @@
 applyTo: ".github/workflows/**,package.json,sfdx-project.json,eslint.config.js,jest.config.js,.prettierrc,RUNBOOK.md,docs/AI-GOVERNANCE.md"
 ---
 
-After modifying this file, check whether `AGENTS.md` needs updating.
+After modifying this file, check whether `AGENTS.md` and `README.md` need updating.
 
 Update `AGENTS.md` if the change affects any of the following:
 - Available `npm` scripts or their behaviour
