@@ -56,6 +56,6 @@ target/
 **/*.tsbuildinfo
 **/graphql.config.yml
 /plan/
-/docs/
+/docs/plans/
 /.playwright-mcp/
 /.husky/_/

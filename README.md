@@ -191,6 +191,8 @@ The `.github/` directory ships a complete Copilot workspace setup:
 
 **Prompt files** — reusable prompts for common Salesforce tasks (e.g., `create-exception-handler`).
 
+**MCP servers** — see [`docs/mcp-setup.md`](docs/mcp-setup.md) for the recommended set of MCP servers (Salesforce DX, GitHub, Context7, Tavily, and more) and how to configure them globally in your IDE.
+
 ## Commit policy
 
 This project follows the [Conventional Commits](https://www.conventionalcommits.org/) specification.
