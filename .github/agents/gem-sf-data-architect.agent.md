@@ -192,6 +192,7 @@ Return JSON per Output Format.
 # Rules
 
 ## Must-Follow
+- **Language**: all XML `<description>` fields, comments, and any documentation must be written in English only, regardless of the chat language.
 - **API version alignment** — XML namespace and field types must match `sfdx-project.json` API version.
 - **Naming convention** — `CustomObject__c`, `Field__c` with `__c` suffix; no spaces in API names.
 - **Prefer Permission Sets over Profiles** — Profiles are legacy; use Permission Sets for all new access control.

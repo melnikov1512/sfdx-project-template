@@ -160,6 +160,7 @@ Return JSON per `Output Format`.
 # Rules
 
 ## Must-Follow
+- **Language**: all Apex comments, ApexDoc, and any generated documentation must be written in English only, regardless of the chat language.
 - **One trigger per object** — no duplicate triggers on same SObject.
 - **No SOQL/DML in loops** — always bulk.
 - **`with sharing` by default** — document exceptions.

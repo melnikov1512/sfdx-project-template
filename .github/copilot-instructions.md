@@ -65,6 +65,12 @@ Approving or commenting on a plan is **not** permission to implement it.
 - Use component prefixes: `ComponentName_Description`
 - Use placeholders: `{0}`, `{1}` for dynamic values
 
+### Language (CRITICAL)
+
+- **All code comments must be written in English only** — regardless of the language used in chat.
+- **All documentation** (README, AGENTS.md, `docs/**`, plan files, inline JSDoc/ApexDoc) **must be written in English only**.
+- This rule is not automatically inherited by sub-agents when delegating tasks — it is duplicated directly inside the `.agent.md` files of agents that write code or docs (`gem-implementer`, `gem-apex-specialist`, `gem-lwc-specialist`, `gem-code-simplifier`, `gem-documentation-writer`, `gem-sf-data-architect`). See `docs/copilot-customization-guide.md` for why.
+
 ### Timezone Handling
 
 - Apex: Use `.dateGMT()` not `.date()`

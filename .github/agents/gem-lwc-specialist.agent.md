@@ -274,6 +274,7 @@ Return JSON per Output Format.
 # Rules
 
 ## Must-Follow
+- **Language**: all JS/HTML/CSS comments, JSDoc, and any generated documentation must be written in English only, regardless of the chat language.
 - **Jest tests are mandatory** — every component needs `__tests__/` with meaningful coverage.
 - **No inline styles** — SLDS utility classes and CSS custom properties only.
 - **Always handle wire errors** — `if (error)` branch is not optional.
