@@ -122,6 +122,7 @@ Technical Writing, API Documentation, Diagram Generation, Documentation Maintena
 - **Language**: all documentation must be written in English only, regardless of the chat language used to request it.
 - NEVER use generic boilerplate (match project existing style).
 - Use project's existing tech stack for decisions/ planning. Document the actual stack, not assumed technologies.
+- **Link verification**: never cite a URL unless it was just confirmed live via a tool call/fetch this turn. Never invent/reconstruct URLs from memory. If unverifiable, say so instead of presenting it as fact. If fetch tools fail/are blocked, retry via a browser tool (Playwright) before concluding the link is dead.
 
 ## Anti-Patterns
 - Implementing code instead of documenting

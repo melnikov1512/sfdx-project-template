@@ -65,6 +65,13 @@ Approving or commenting on a plan is **not** permission to implement it.
 - Use component prefixes: `ComponentName_Description`
 - Use placeholders: `{0}`, `{1}` for dynamic values
 
+### Link Verification (CRITICAL)
+
+- Never state or output a URL (chat, code comments, commit/PR text, generated docs) unless it was just confirmed as live: either returned directly by a tool call in the current turn (search results, `get_file_contents`, API responses), or actually fetched (`web_fetch`, `tavily_extract`/`tavily_search`, `fetch-fetch`) and shown to return a successful response with real, on-topic content.
+- Never invent or reconstruct a URL from memory/training data (e.g., guessing a docs path pattern) and present it as fact.
+- If a link cannot be verified, say so explicitly (e.g., "I could not verify this link is live") instead of presenting a possibly-broken link as fact; prefer citing the resource name/search query over a guessed URL.
+- If the primary fetch tools fail to verify a link (blocked, JS-rendered, CAPTCHA, timeout, non-200), retry verification using a browser automation tool (e.g., Playwright: `browser_navigate` + `browser_snapshot`) before concluding the link is dead or unreachable.
+
 ### Language (CRITICAL)
 
 - **All code comments must be written in English only** — regardless of the language used in chat.
