@@ -189,6 +189,8 @@ The `.github/` directory ships a complete Copilot workspace setup:
 
 **Prompt files** — reusable prompts for common Salesforce tasks (e.g., `create-exception-handler`).
 
+**Using these mechanisms** — see [`docs/copilot-customization-guide.md`](docs/copilot-customization-guide.md) for a guide on when to use agents vs. instructions vs. skills vs. prompts, including an important note on why custom instructions are not automatically inherited by delegated sub-agents.
+
 **MCP servers** — see [`docs/mcp-setup.md`](docs/mcp-setup.md) for the recommended set of MCP servers (Salesforce DX, GitHub, Context7, Tavily, and more) and how to configure them globally in your IDE.
 
 ## Commit policy
