@@ -4,3 +4,4 @@ IlluminatedCloud/
 node_modules/
 .github/
 .husky/
+*.md
