@@ -35,10 +35,10 @@ Clone this template, add your metadata to `force-app/`, configure the `SF_AUTH_U
 ## Getting started
 
 ```bash
-# 1. Clone the repo and install dependencies
+# 1. Clone the repo and install dependencies (uses package-lock.json as-is)
 git clone https://github.com/your-org/your-repo.git
 cd sfdx-project-template
-npm install
+npm ci
 
 # 2. Authenticate your Dev Hub
 sf org login web --alias devhub --set-default-dev-hub
