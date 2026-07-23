@@ -17,7 +17,7 @@ npm -v
 
 ### Expected state
 
-- Node.js version 20+
+- Node.js version 18.11+ (CI workflows run on Node 24)
 - npm is available in `PATH`
 
 ### Actions
@@ -407,7 +407,7 @@ git push origin hotfix/<issue-id>-<description>
 gh pr create --base main --title "fix(<scope>): <description>" --body "Closes #<issue-id>"
 
 # 5. After PR merge, trigger deploy workflow manually (Actions → Deploy → Run workflow)
-#    Select ref=main, environment=staging → verify, then environment=production
+#    Select ref=main, environment=QA_ORG (or the appropriate environment if more have been added)
 ```
 
 ### Hotfix SLA
@@ -434,28 +434,31 @@ The deploy workflow (`.github/workflows/deploy.yml`) deploys Salesforce metadata
 
 ### Environments
 
-| Environment  | Secrets                            | GitHub Environment Protection                                   |
-| ------------ | ---------------------------------- | --------------------------------------------------------------- |
-| `staging`    | `SF_AUTH_URL` (environment secret) | Recommended: required reviewer                                  |
-| `production` | `SF_AUTH_URL` (environment secret) | Required: required reviewer + deployment branch policy (`main`) |
+| Environment | Secrets                            | GitHub Environment Protection           |
+| ----------- | ----------------------------------- | ---------------------------------------- |
+| `QA_ORG`    | `SF_AUTH_URL` (environment secret) | Optional: required reviewer, if desired |
 
-Repository-level secrets `SF_AUTH_URL_STAGING` and `SF_AUTH_URL_PRODUCTION` are used by the validate job — this allows validate to run without waiting for environment approval.
+`QA_ORG` is the only environment currently wired into `deploy.yml`'s `environment` input. Both the `validate` and `deploy` jobs run inside the selected GitHub Environment and read its environment-scoped `SF_AUTH_URL` secret — there are no repository-level secrets involved.
+
+To add more environments (e.g. `staging`, `production`):
+
+1. Add the new environment name to the `environment.options` list in `.github/workflows/deploy.yml`.
+2. Create a matching GitHub Environment (**Settings → Environments**) with its own `SF_AUTH_URL` secret and protection rules.
 
 ### Required setup
 
-1. In the GitHub repository → **Settings → Environments**, create `staging` and `production` environments.
+1. In the GitHub repository → **Settings → Environments**, create the `QA_ORG` environment (or any additional environments added to the workflow).
 2. In each environment, add the `SF_AUTH_URL` secret (SFDX Auth URL for the target org).
-3. Add repository-level secrets `SF_AUTH_URL_STAGING` and `SF_AUTH_URL_PRODUCTION` (Settings → Secrets → Actions) — used by the validate job.
-4. For `production`, enable **Required reviewers** and **Deployment branch policy: main only**.
+3. For production-like environments, enable **Required reviewers** and **Deployment branch policy: main only**.
 
 ### Running a deploy
 
 1. **Actions → Deploy → Run workflow**.
 2. Select `ref`: branch or tag to deploy (default: `main`).
-3. Select `environment`: `staging` or `production`.
+3. Select `environment`: currently `QA_ORG` (or any environment added per "Required setup" above).
 4. Optional: `dry_run: true` — runs validate only, no actual deploy.
 5. Wait for the `validate` job to pass.
-6. For `production`: confirm the deploy in the GitHub Environments UI.
+6. For environments with Required Reviewers enabled: confirm the deploy in the GitHub Environments UI.
 
 ### Rollback
 
@@ -474,8 +477,7 @@ Rollback is performed by re-deploying the previous working version.
     git push origin hotfix/<issue-id>-rollback
     ```
 4. Open a PR to `main` and merge (fast-track).
-5. Run deploy workflow with `environment=staging` → verify it works.
-6. Run deploy workflow with `environment=production`.
+5. Run deploy workflow with `environment=QA_ORG` (or the appropriate environment if more have been added) → verify it works.
 
 #### Emergency rollback (via sf CLI directly)
 
@@ -615,7 +617,7 @@ Specific disable options for `ai-test-recommendations`:
 
 `scripts/deploy.js` is a local Node.js wrapper around `sf project deploy start/validate`. It is intended for deploying directly from your workstation to any authenticated org — dev sandboxes, scratch orgs, or QA environments.
 
-For CI/CD-governed deploys to `staging` and `production`, use the **Actions → Deploy** workflow (Section 17) instead.
+For CI/CD-governed deploys, use the **Actions → Deploy** workflow (Section 17) instead.
 
 ### Prerequisites
 

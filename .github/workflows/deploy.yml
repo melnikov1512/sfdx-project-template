@@ -204,7 +204,7 @@ jobs:
 
           ### Rollback
 
-          See **[RUNBOOK.md — Section 17: Deploy workflow и rollback](../blob/${{ github.ref_name }}/RUNBOOK.md#17-deploy-workflow-и-rollback)** for rollback procedures.
+          See **[RUNBOOK.md — Section 17: Deploy workflow and rollback](../blob/${{ github.ref_name }}/RUNBOOK.md#17-deploy-workflow-and-rollback)** for rollback procedures.
 
           EOF
 

@@ -21,7 +21,7 @@ Clone this template, add your metadata to `force-app/`, configure the `SF_AUTH_U
 - **Apex SAST** — `sf code-analyzer` (SARIF output) on every PR; blocks on `error`-level findings
 - **Pre-commit hooks** — Husky + lint-staged: format → lint → related LWC tests, automatically
 - **CI pipelines** — PR checks, metadata validate-only gate, security scanning, AI PR summaries, and guarded manual deploys
-- **GitHub Copilot** — 18 custom agents, 5 instruction files, 19 skills, and prompt files pre-wired under `.github/`
+- **GitHub Copilot** — 18 custom agents, 7 instruction files, 19 skills, and prompt files pre-wired under `.github/`
 
 ## Prerequisites
 
@@ -177,11 +177,13 @@ The `.github/` directory ships a complete Copilot workspace setup:
 
 | File                             | Applies to                             |
 | -------------------------------- | -------------------------------------- |
-| `apex-patterns.instructions.md`  | Apex classes and triggers              |
-| `lwc-patterns.instructions.md`   | LWC JS, HTML, and CSS                  |
-| `unit-tests.instructions.md`     | Apex test classes                      |
-| `salesforce-cli.instructions.md` | `sfdx-project.json`, config, manifests |
-| `node-scripts.instructions.md`   | `scripts/**/*.js`, `*.config.js`       |
+| `apex-patterns.instructions.md`      | Apex classes and triggers                                    |
+| `lwc-patterns.instructions.md`       | LWC JS, HTML, and CSS                                        |
+| `unit-tests.instructions.md`         | Apex test classes                                            |
+| `salesforce-cli.instructions.md`     | `sfdx-project.json`, config, manifests                       |
+| `node-scripts.instructions.md`       | `scripts/**/*.js`, `*.config.js`                             |
+| `agents-maintenance.instructions.md` | CI workflows, `package.json`, `sfdx-project.json`, `RUNBOOK.md` |
+| `readme-maintenance.instructions.md` | `README.md`, `.github/agents\|instructions\|skills\|prompts/**` |
 
 **Custom agents** — 18 specialized sub-agents including `gem-apex-specialist`, `gem-lwc-specialist`, `gem-sf-data-architect`, `gem-orchestrator`, `gem-implementer`, `gem-reviewer`, `gem-debugger`, and more.
 
