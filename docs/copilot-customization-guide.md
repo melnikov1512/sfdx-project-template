@@ -68,7 +68,7 @@ architecture, what is and isn't allowed. This repository uses three kinds:
 
 ```markdown
 ---
-applyTo: 'README.md,.github/workflows/**,package.json,sfdx-project.json,eslint.config.js,jest.config.js,.prettierrc,.github/agents/**,.github/instructions/**,.github/skills/**,.github/prompts/**'
+applyTo: 'README.md,.gitlab-ci.yml,package.json,sfdx-project.json,eslint.config.js,jest.config.js,.prettierrc,.github/agents/**,.github/instructions/**,.github/skills/**,.github/prompts/**'
 ---
 
 After changing this file, check whether `README.md` needs to be updated...

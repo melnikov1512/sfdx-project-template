@@ -1,0 +1,272 @@
+# GitLab CI/CD pipeline — replaces the former GitHub Actions workflows
+# (pr-check.yml, security-gates.yml, deploy.yml). Designed for GitLab Free/Core:
+# no built-in SAST/Secret Detection/Dependency Scanning templates, no Protected
+# Environment approval rules — all gates are plain custom jobs.
+#
+# Known gap vs. the former GitHub setup: CodeQL SAST has no GitLab Free
+# equivalent and was not ported. See RUNBOOK.md Section 12 for details.
+
+stages:
+    - validate
+    - security
+    - deploy
+
+default:
+    image: node:24
+    interruptible: true
+
+workflow:
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+        - if: '$CI_PIPELINE_SOURCE == "web"'
+        - if: '$CI_PIPELINE_SOURCE == "schedule"'
+
+# ---------------------------------------------------------------------------
+# Stage: validate — lint, format, LWC tests, Salesforce code analysis,
+# metadata validate-only. Mirrors pr-check.yml.
+# ---------------------------------------------------------------------------
+
+lint_format_test:
+    stage: validate
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    cache:
+        key:
+            files:
+                - package-lock.json
+        paths:
+            - .npm/
+    before_script:
+        - npm ci --cache .npm --prefer-offline
+    script:
+        - npm run lint
+        - npm run prettier:verify
+        - npm run test:lwc:ci
+
+code_analysis:
+    stage: validate
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    timeout: 15m
+    before_script:
+        - npm install --global @salesforce/cli
+        - sf --version
+    script:
+        - |
+            set -euo pipefail
+            if [ ! -d "force-app" ]; then
+              echo "No Salesforce metadata found in force-app. Skipping code analysis."
+              mkdir -p .artifacts/code-analysis
+              exit 0
+            fi
+
+            if ! sf plugins list | grep -q code-analyzer; then
+              echo "Installing @salesforce/sfdx-scanner plugin..."
+              sf plugins install @salesforce/sfdx-scanner --force
+            fi
+
+            mkdir -p .artifacts/code-analysis
+            set +e
+            sf scanner run --target force-app --format sarif --outfile .artifacts/code-analysis/results.sarif
+            scanner_exit=$?
+            set -e
+
+            # Fail on any HIGH/CRITICAL (SARIF level "error") finding; "warning" is advisory only.
+            if [ -f ".artifacts/code-analysis/results.sarif" ]; then
+              node -e "
+                const fs = require('fs');
+                const sarif = JSON.parse(fs.readFileSync('.artifacts/code-analysis/results.sarif', 'utf8'));
+                let blocking = 0;
+                for (const run of (sarif.runs || [])) {
+                  for (const result of (run.results || [])) {
+                    if ((result.level || '') === 'error') {
+                      blocking++;
+                      console.error('BLOCKING finding:', result.ruleId, '-', (result.message || {}).text || '');
+                    }
+                  }
+                }
+                if (blocking > 0) {
+                  console.error(blocking + ' error-level finding(s) detected. Fix before merging. See RUNBOOK.md Section 8.');
+                  process.exit(1);
+                }
+                console.log('No error-level findings. Code analysis passed.');
+              "
+            fi
+
+            exit $scanner_exit
+    artifacts:
+        when: always
+        paths:
+            - .artifacts/code-analysis/
+        expire_in: 30 days
+
+salesforce_validate:
+    stage: validate
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+          changes:
+              - 'force-app/**/*'
+    timeout: 30m
+    environment:
+        name: qa_org
+        action: prepare
+    before_script:
+        - npm install --global @salesforce/cli
+        - sf --version
+    script:
+        - |
+            set -euo pipefail
+            if [ -z "${SF_AUTH_URL:-}" ]; then
+              echo "Missing CI/CD variable SF_AUTH_URL (scoped to environment 'qa_org'). Add it in Settings > CI/CD > Variables."
+              exit 1
+            fi
+            auth_file="$(mktemp)"
+            trap 'rm -f "$auth_file"' EXIT
+            printf '%s' "$SF_AUTH_URL" > "$auth_file"
+            sf org login sfdx-url --sfdx-url-file "$auth_file" --alias ci-validate-org --set-default
+            npm run deploy -- --target-org ci-validate-org --validate-only --tests --source-dir "${SFDX_METADATA_DIR:-force-app}"
+    artifacts:
+        when: always
+        paths:
+            - .artifacts/deploy/
+        expire_in: 30 days
+
+# ---------------------------------------------------------------------------
+# Stage: security — secret scanning + dependency audit. Mirrors security-gates.yml.
+# Weekly cadence is configured via a GitLab Pipeline Schedule (UI), not in this file.
+# ---------------------------------------------------------------------------
+
+secret_scan:
+    stage: security
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+        - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    image: alpine:3.20
+    timeout: 10m
+    script:
+        - |
+            set -euo pipefail
+            apk add --no-cache curl tar git
+            version="8.28.0"
+            archive="gitleaks_${version}_linux_x64.tar.gz"
+            curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${version}/${archive}" -o /tmp/$archive
+            tar -xzf /tmp/$archive -C /tmp gitleaks
+            install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+            gitleaks version
+
+            mkdir -p .artifacts/security
+            set +e
+            gitleaks git --redact --no-banner --report-format sarif --report-path .artifacts/security/gitleaks.sarif .
+            gitleaks_exit=$?
+            set -e
+
+            if [ "$gitleaks_exit" != "0" ]; then
+              echo "Secret scan failed. Findings block merge until remediated or covered by a time-boxed exception (RUNBOOK.md Section 13)."
+              exit 1
+            fi
+    artifacts:
+        when: always
+        paths:
+            - .artifacts/security/gitleaks.sarif
+        expire_in: 30 days
+
+dependency_audit:
+    stage: security
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    timeout: 15m
+    script:
+        - |
+            set -euo pipefail
+            npm ci
+            mkdir -p .artifacts/security
+            set +e
+            npm audit --audit-level=high --json > .artifacts/security/npm-audit.json
+            audit_exit=$?
+            set -e
+
+            node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('.artifacts/security/npm-audit.json','utf8'));const v=(data.metadata&&data.metadata.vulnerabilities)||{};console.log('npm audit summary => critical:',v.critical||0,'high:',v.high||0,'moderate:',v.moderate||0,'low:',v.low||0);"
+
+            if [ "$audit_exit" -ne 0 ]; then
+              echo "High/Critical vulnerabilities detected. See npm-audit.json artifact and RUNBOOK.md Section 11."
+              exit "$audit_exit"
+            fi
+    artifacts:
+        when: always
+        paths:
+            - .artifacts/security/npm-audit.json
+        expire_in: 30 days
+
+# ---------------------------------------------------------------------------
+# Stage: deploy — manual Salesforce metadata deploy. Mirrors deploy.yml.
+# Only runnable via "Run pipeline" in the GitLab UI (CI_PIPELINE_SOURCE == "web"),
+# matching the former workflow_dispatch trigger. Choose the target ref there.
+# ---------------------------------------------------------------------------
+
+deploy_validate_qa_org:
+    stage: deploy
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "web"'
+    timeout: 30m
+    environment:
+        name: qa_org
+        action: prepare
+    before_script:
+        - npm install --global @salesforce/cli
+        - sf --version
+    script:
+        - |
+            set -euo pipefail
+            if [ ! -d "force-app" ]; then
+              echo "force-app not found — nothing to validate."
+              mkdir -p .artifacts/deploy
+              exit 0
+            fi
+            if [ -z "${SF_AUTH_URL:-}" ]; then
+              echo "Missing CI/CD variable SF_AUTH_URL (scoped to environment 'qa_org')."
+              exit 1
+            fi
+            auth_file="$(mktemp)"
+            trap 'rm -f "$auth_file"' EXIT
+            printf '%s' "$SF_AUTH_URL" > "$auth_file"
+            sf org login sfdx-url --sfdx-url-file "$auth_file" --alias ci-validate-org --set-default
+            npm run deploy -- --target-org ci-validate-org --validate-only
+    artifacts:
+        when: always
+        paths:
+            - .artifacts/deploy/
+        expire_in: 30 days
+
+deploy_qa_org:
+    stage: deploy
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "web" && $DRY_RUN != "true"'
+          when: manual
+    timeout: 30m
+    needs:
+        - deploy_validate_qa_org
+    environment:
+        name: qa_org
+    before_script:
+        - npm install --global @salesforce/cli
+        - sf --version
+    script:
+        - |
+            set -euo pipefail
+            if [ -z "${SF_AUTH_URL:-}" ]; then
+              echo "Missing CI/CD variable SF_AUTH_URL (scoped to environment 'qa_org'). Add it in Settings > CI/CD > Variables > Environment scope = qa_org."
+              exit 1
+            fi
+            auth_file="$(mktemp)"
+            trap 'rm -f "$auth_file"' EXIT
+            printf '%s' "$SF_AUTH_URL" > "$auth_file"
+            sf org login sfdx-url --sfdx-url-file "$auth_file" --alias ci-deploy-org --set-default
+            npm run deploy -- --target-org ci-deploy-org
+    artifacts:
+        when: always
+        paths:
+            - .artifacts/deploy/
+        expire_in: 30 days
