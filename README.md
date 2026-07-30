@@ -7,21 +7,21 @@
 
 _Production-ready Salesforce DX starter with quality tooling, CI/CD, and GitHub Copilot AI built in_
 
-[Getting Started](#getting-started) • [Commands](#commands) • [CI/CD](#cicd-pipeline) • [Copilot Integration](#github-copilot-integration) • [Commit Policy](#commit-policy) • [Troubleshooting](#troubleshooting)
+[Getting Started](#getting-started) • [Commands](#commands) • [CI/CD](#cicd-pipelines) • [Copilot Integration](#github-copilot-integration) • [Commit Policy](#commit-policy) • [Troubleshooting](#troubleshooting)
 
 </div>
 
-Clone this template, add your metadata to `force-app/`, configure the `SF_AUTH_URL` CI/CD variable, and you're ready to ship. Everything else — linting, formatting, testing, security gates, and deployments — is already wired up.
+Clone this template, add your metadata to `force-app/`, configure the `SF_AUTH_URL` secret, and you're ready to ship. Everything else — linting, formatting, testing, security gates, deployments, and AI-assisted code review — is already wired up.
 
 ## What's included
 
 - **Linting** — ESLint flat config for LWC and Aura JS (`@salesforce/eslint-config-lwc`)
 - **Formatting** — Prettier with Apex and XML plugins; 4-space indent for all code files; enforced in CI and on pre-commit
 - **LWC unit tests** — `@salesforce/sfdx-lwc-jest` with watch, debug, and coverage modes
-- **Apex SAST** — `sf code-analyzer` (SARIF output) on every MR; blocks on `error`-level findings
+- **Apex SAST** — `sf code-analyzer` (SARIF output) on every PR; blocks on `error`-level findings
 - **Pre-commit hooks** — Husky + lint-staged: format → lint → related LWC tests, automatically
-- **CI/CD pipeline** — MR checks, metadata validate-only gate, security scanning, and a guarded manual deploy job
-- **GitHub Copilot** — 18 custom agents, 7 instruction files, 19 skills, and prompt files pre-wired under `.github/` (works locally regardless of git host)
+- **CI pipelines** — PR checks, metadata validate-only gate, security scanning, AI PR summaries, and guarded manual deploys
+- **GitHub Copilot** — 18 custom agents, 7 instruction files, 19 skills, and prompt files pre-wired under `.github/`
 
 ## Prerequisites
 
@@ -30,13 +30,13 @@ Clone this template, add your metadata to `force-app/`, configure the `SF_AUTH_U
 | [Node.js](https://nodejs.org)                                                 | 18.11+                                             |
 | [Salesforce CLI (`sf`)](https://developer.salesforce.com/tools/salesforcecli) | Latest; required for Apex tests and org operations |
 | Authenticated Salesforce org                                                  | Required for `test:apex` and deploy commands       |
-| `SF_AUTH_URL` CI/CD variable                                                  | Required for CI metadata validation (protected + masked, scoped to environment `qa_org`) |
+| `SF_AUTH_URL` repository secret                                               | Required for CI metadata validation                |
 
 ## Getting started
 
 ```bash
 # 1. Clone the repo and install dependencies (uses package-lock.json as-is)
-git clone https://git.vrpconsulting.com/artem.melnikov/sfdx-project-template.git
+git clone https://github.com/your-org/your-repo.git
 cd sfdx-project-template
 npm ci
 
@@ -71,16 +71,13 @@ sfdx-project-template/
 ├── docs/
 │   └── plans/                 # Implementation plans
 ├── scripts/
-│   └── deploy.js              # Local deploy helper (mirrors the deploy pipeline jobs)
+│   └── deploy.js              # Local deploy helper (mirrors deploy.yml)
 ├── .github/
 │   ├── agents/                # 18 Copilot custom agents
 │   ├── instructions/          # Auto-applied Copilot instruction files
 │   ├── prompts/               # Reusable Copilot prompt files
-│   └── skills/                # 19 on-demand Copilot skills
-├── .gitlab/
-│   └── merge_request_templates/
-│       └── Default.md         # MR template (security self-review, testing checklist)
-├── .gitlab-ci.yml             # CI/CD pipeline definition
+│   ├── skills/                # 19 on-demand Copilot skills
+│   └── workflows/             # CI/CD pipeline definitions
 ├── sfdx-project.json          # API v66.0, package dir: force-app
 ├── .prettierrc                # Prettier config: 4-space indent, Apex + XML plugins
 ├── eslint.config.js
@@ -145,41 +142,36 @@ npm run deploy -- --target-org <alias> --wait 60
 ```
 
 > [!NOTE]
-> Results and logs are written to `.artifacts/deploy/results/`. For CI/CD-governed deploys to QA and higher envs, use the **GitLab CI/CD deploy pipeline** instead — see `RUNBOOK.md` §17.
+> Results and logs are written to `.artifacts/deploy/results/`. For CI/CD-governed deploys to QA and higher envs, use the **Actions → Deploy** workflow instead — see `RUNBOOK.md` §17.
 
-## CI/CD pipeline
+## CI/CD pipelines
 
-| Job                      | Trigger                                    | What it does                                                        |
-| ------------------------ | ------------------------------------------- | --------------------------------------------------------------------|
-| `lint_format_test`       | MR → `main`                                 | Lint, format check, LWC tests                                       |
-| `code_analysis`          | MR → `main`                                 | Salesforce Apex/LWC/Aura SAST via `sf code-analyzer`                 |
-| `salesforce_validate`    | MR → `main` (when `force-app/**` changes)   | Metadata validate-only against the `qa_org` environment              |
-| `secret_scan`            | MR + push `main` + scheduled                | Gitleaks secret scanning (blocks on any finding)                     |
-| `dependency_audit`       | MR + scheduled                              | `npm audit` dependency gate (blocks on `high`/`critical`)            |
-| `deploy_validate_qa_org` | Manual (`Run pipeline` in UI)               | Validate-only deploy gate, runs automatically ahead of deploy        |
-| `deploy_qa_org`          | Manual (`Run pipeline` in UI)               | Deploy to `qa_org`; skipped if `DRY_RUN=true` pipeline variable set   |
+| Workflow                      | Trigger                      | What it does                                                     |
+| ----------------------------- | ---------------------------- | ---------------------------------------------------------------- |
+| `pr-check.yml`                | PR → `main`                  | Lint, format check, LWC tests, Apex SAST, metadata validate-only |
+| `security-gates.yml`          | PR + push `main` + weekly    | Secret scanning, dependency audit (blocks on `high`/`critical`)  |
+| `ai-pr-summary.yml`           | PR opened/updated            | AI-generated PR summary via GitHub Models (`gpt-4o-mini`)        |
+| `ai-test-recommendations.yml` | PR opened/updated            | AI-suggested test improvements                                   |
+| `codeql.yml`                  | PR + push `main`             | CodeQL static analysis                                           |
+| `deploy.yml`                  | Manual (`workflow_dispatch`) | Deploy any branch to QA and higher envs with a validate gate     |
 
 > [!IMPORTANT]
-> Metadata validation in CI requires the `SF_AUTH_URL` CI/CD variable (protected + masked, scoped to environment `qa_org`). MRs that touch `force-app/` (or the path set in `SFDX_METADATA_DIR`) will fail explicitly if the variable is absent.
+> Metadata validation in CI requires the `SF_AUTH_URL` repository secret. PRs that touch `force-app/` (or the path set in `SFDX_METADATA_DIR`) will fail explicitly if the secret is absent.
 
 > [!TIP]
-> Set the optional CI/CD variable `SFDX_METADATA_DIR` to change the metadata root without modifying any code. Defaults to `force-app`.
-
-> [!NOTE]
-> CodeQL SAST from the former GitHub Actions setup has no direct GitLab Free/Core equivalent and was not ported — see `RUNBOOK.md` §12 for the documented gap and mitigation options.
+> Set the optional repository variable `SFDX_METADATA_DIR` to change the metadata root without modifying any code. Defaults to `force-app`.
 
 ## Deployment
 
-Deployments to QA and higher envs are triggered manually via **CI/CD → Pipelines → Run pipeline**.
+Deployments to QA and higher envs are triggered manually via **Actions → Deploy → Run workflow**.
 
-- A validate-only gate (`deploy_validate_qa_org`) always runs before the actual deploy job.
-- The `deploy_qa_org` job requires a manual click to run (`when: manual`); set the `DRY_RUN=true` pipeline variable to stop after validation.
-- GitLab Free/Core has no Protected Environment approval rules — access to higher environments is controlled via protected branches and CI/CD variable scoping instead.
+- A validate-only gate always runs before the actual deploy.
+- Higher environments require Required Reviewers and enforce a `main`-only branch policy.
 - For rollback steps, see `RUNBOOK.md` §17.
 
 ## GitHub Copilot integration
 
-The `.github/` directory ships a complete Copilot CLI workspace setup. This is a **local tooling configuration** — it works regardless of where the repository is hosted (GitHub or GitLab) and was intentionally kept as-is during the move to GitLab.
+The `.github/` directory ships a complete Copilot workspace setup:
 
 **Instruction files** — auto-applied context scoped by file pattern:
 
@@ -190,15 +182,12 @@ The `.github/` directory ships a complete Copilot CLI workspace setup. This is a
 | `unit-tests.instructions.md`         | Apex test classes                                            |
 | `salesforce-cli.instructions.md`     | `sfdx-project.json`, config, manifests                       |
 | `node-scripts.instructions.md`       | `scripts/**/*.js`, `*.config.js`                             |
-| `agents-maintenance.instructions.md` | `.gitlab-ci.yml`, `package.json`, `sfdx-project.json`, `RUNBOOK.md` |
+| `agents-maintenance.instructions.md` | CI workflows, `package.json`, `sfdx-project.json`, `RUNBOOK.md` |
 | `readme-maintenance.instructions.md` | `README.md`, `.github/agents\|instructions\|skills\|prompts/**` |
 
 **Custom agents** — 18 specialized sub-agents including `gem-apex-specialist`, `gem-lwc-specialist`, `gem-sf-data-architect`, `gem-orchestrator`, `gem-implementer`, `gem-reviewer`, `gem-debugger`, and more.
 
-**Skills** — 19 on-demand workflows: `create-implementation-plan`, `refactor-plan`, `architecture-blueprint-generator`, Tavily search/research/crawl, and more.
-
-> [!NOTE]
-> A few skills (`gh-cli`, `github-issues`, `my-issues`, `my-pull-requests`) and the `github-actions-expert` agent target GitHub.com APIs (Issues, PRs, Actions) specifically. They remain available for reference but do not apply to this repository now that it is hosted on GitLab — use GitLab's own `glab` CLI / Web IDE for issues and merge requests instead.
+**Skills** — 19 on-demand workflows: `create-implementation-plan`, `refactor-plan`, `architecture-blueprint-generator`, `github-issues`, Tavily search/research/crawl, and more.
 
 **Prompt files** — reusable prompts for common Salesforce tasks (e.g., `create-exception-handler`).
 
@@ -248,7 +237,7 @@ This project follows the [Conventional Commits](https://www.conventionalcommits.
 | `lwc`      | `force-app/**/lwc/**`                                 |
 | `aura`     | `force-app/**/aura/**`                                |
 | `metadata` | Other Salesforce metadata under `force-app/`          |
-| `ci`       | `.gitlab-ci.yml`, `.gitlab/**`                        |
+| `ci`       | `.github/workflows/**`                                |
 | `copilot`  | `.github/agents/**`, `instructions/**`, `skills/**`   |
 | `config`   | `sfdx-project.json`, `config/**`, `eslint.config.js`  |
 | `scripts`  | `scripts/**`                                          |
@@ -274,7 +263,7 @@ fix(ci): use RunLocalTests for validate-only deploys
 refactor(lwc): extract date formatting into shared utility
 docs: add commit policy section to README
 build(deps): bump @salesforce/eslint-config-lwc to 4.x
-ci: add Apex test coverage gate to the MR pipeline
+ci: add Apex test coverage gate to pr-check workflow
 ```
 
 ### Rules

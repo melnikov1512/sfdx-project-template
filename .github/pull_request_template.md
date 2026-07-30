@@ -17,7 +17,7 @@
 
 ## Security Self-Review
 
-> For exceptions, reference a time-boxed issue per [RUNBOOK.md §13](../../RUNBOOK.md#13-exception-lifecycle-time-boxed-risk-acceptance).
+> For exceptions, reference a time-boxed issue per [RUNBOOK.md §12](RUNBOOK.md#12).
 
 - [ ] No secrets, credentials, or PII in code, config, or test data
 - [ ] Dependencies: no new High/Critical CVEs (`npm audit`)

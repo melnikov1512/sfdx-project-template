@@ -1,0 +1,245 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        default: "QA_ORG"
+        options:
+          - QA_ORG
+      ref:
+        description: "Branch or tag to deploy"
+        required: true
+        default: "main"
+        type: string
+      dry_run:
+        description: "Dry run — validate only, skip deploy"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: Validate — runs inside the selected environment. No protection rules —
+  #         never blocks on reviewer approval.
+  # ---------------------------------------------------------------------------
+  validate:
+    name: Validate Salesforce Metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install Salesforce CLI
+        run: |
+          set -euo pipefail
+          npm install --global @salesforce/cli
+          sf --version
+
+      - name: Check metadata root exists
+        id: check-metadata
+        run: |
+          set -euo pipefail
+          if [ ! -d "force-app" ]; then
+            echo "::warning title=No metadata root::force-app directory not found. Skipping validate."
+            echo "has_metadata=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_metadata=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip when no metadata
+        if: steps.check-metadata.outputs.has_metadata != 'true'
+        run: |
+          echo "force-app not found — nothing to validate."
+          mkdir -p .artifacts/deploy-validate
+
+      - name: Authenticate Salesforce org
+        if: steps.check-metadata.outputs.has_metadata == 'true'
+        env:
+          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        run: |
+          set -euo pipefail
+
+          auth_file="$(mktemp)"
+          trap 'rm -f "$auth_file"' EXIT
+          printf '%s' "$SF_AUTH_URL" > "$auth_file"
+
+          sf org login sfdx-url \
+            --sfdx-url-file "$auth_file" \
+            --alias ci-validate-org \
+            --set-default
+
+      - name: Run validate-only deploy
+        if: steps.check-metadata.outputs.has_metadata == 'true'
+        run: npm run deploy -- --target-org ci-validate-org --validate-only
+
+      - name: Upload validate artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: deploy-validate-${{ github.run_id }}
+          path: .artifacts/deploy
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Deploy — runs inside the selected environment.
+  #         Uses environment-scoped secret SF_AUTH_URL.
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: validate
+    environment: ${{ inputs.environment }}
+    if: ${{ !inputs.dry_run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install Salesforce CLI
+        run: |
+          set -euo pipefail
+          npm install --global @salesforce/cli
+          sf --version
+
+      - name: Authenticate Salesforce org
+        # SF_AUTH_URL is an environment-scoped secret from the selected environment.
+        env:
+          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SF_AUTH_URL:-}" ]; then
+            echo "::error title=Missing auth secret::Environment secret SF_AUTH_URL is not set for the '${{ inputs.environment }}' environment. Add it in Settings → Environments → ${{ inputs.environment }} → Secrets."
+            exit 1
+          fi
+
+          auth_file="$(mktemp)"
+          trap 'rm -f "$auth_file"' EXIT
+          printf '%s' "$SF_AUTH_URL" > "$auth_file"
+
+          sf org login sfdx-url \
+            --sfdx-url-file "$auth_file" \
+            --alias ci-deploy-org \
+            --set-default
+
+      - name: Deploy Salesforce metadata
+        id: deploy
+        run: npm run deploy -- --target-org ci-deploy-org
+
+      - name: Capture deploy ID
+        if: always()
+        id: capture-id
+        run: |
+          set -euo pipefail
+
+          deploy_id=""
+
+          # Try to extract Job ID from deploy log (format: "Deploy ID: 0Af...")
+          if [ -f ".artifacts/deploy/deploy.log" ]; then
+            deploy_id="$(grep -oE '(Deploy ID|Job ID)[[:space:]]*:[[:space:]]*[0-9A-Za-z]{15,18}' \
+              .artifacts/deploy/deploy.log | head -1 | grep -oE '[0-9A-Za-z]{15,18}$' || true)"
+          fi
+
+          # Fallback: look inside results JSON for deployId / id field
+          if [ -z "$deploy_id" ] && [ -d ".artifacts/deploy/results" ]; then
+            deploy_id="$(find .artifacts/deploy/results -name '*.json' -print0 \
+              | xargs -0 grep -hoE '"(deployId|id)"[[:space:]]*:[[:space:]]*"[0-9A-Za-z]{15,18}"' 2>/dev/null \
+              | head -1 | grep -oE '[0-9A-Za-z]{15,18}"' | tr -d '"' || true)"
+          fi
+
+          echo "deploy_id=${deploy_id:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "Deploy ID: ${deploy_id:-unknown}"
+
+      - name: Write job summary
+        if: always()
+        run: |
+          deploy_id="${{ steps.capture-id.outputs.deploy_id }}"
+          timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          version="$(node -p "require('./package.json').version" 2>/dev/null || echo 'n/a')"
+
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          ## 🚀 Deploy Summary
+
+          | Field       | Value |
+          |-------------|-------|
+          | Environment | \`${{ inputs.environment }}\` |
+          | Version     | \`${version}\` |
+          | Deploy ID   | \`${deploy_id}\` |
+          | Triggered   | \`${{ github.actor }}\` |
+          | Commit      | \`${{ github.sha }}\` |
+          | Timestamp   | \`${timestamp}\` |
+          | Run         | [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+
+          ### Rollback
+
+          See **[RUNBOOK.md — Section 17: Deploy workflow and rollback](../blob/${{ github.ref_name }}/RUNBOOK.md#17-deploy-workflow-and-rollback)** for rollback procedures.
+
+          EOF
+
+      - name: Upload deploy artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: deploy-${{ inputs.environment }}-${{ github.run_id }}
+          path: .artifacts/deploy
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Dry-run summary — emitted when dry_run=true; deploy is skipped.
+  # ---------------------------------------------------------------------------
+  dry-run-summary:
+    name: Dry Run Summary
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ inputs.dry_run }}
+    steps:
+      - name: Emit dry-run summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
+          ## 🧪 Dry Run — deploy skipped
+
+          Validate completed successfully. No changes were deployed.
+
+          | Field       | Value |
+          |-------------|-------|
+          | Environment | `${{ inputs.environment }}` |
+          | Dry run     | `true` |
+
+          ### To deploy for real
+
+          Re-run this workflow from **Actions → Deploy → Run workflow** with:
+          - `dry_run`: **unchecked** (false)
+
+          EOF

@@ -1,0 +1,224 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint, Format & LWC Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run prettier:verify
+
+      - name: LWC unit tests (CI)
+        run: npm run test:lwc:ci
+
+  code-analysis:
+    name: Salesforce Code Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install Salesforce CLI
+        run: |
+          set -euo pipefail
+          npm install --global @salesforce/cli
+          sf --version
+
+      - name: Install code-analyzer plugin
+        run: |
+          set -euo pipefail
+          if ! sf plugins list | grep -q code-analyzer; then
+            echo "Installing @salesforce/sfdx-scanner plugin..."
+            sf plugins install @salesforce/sfdx-scanner --force
+          else
+            echo "code-analyzer plugin already installed"
+          fi
+
+      - name: Check if Salesforce metadata exists
+        id: check-metadata
+        run: |
+          if [ -d "force-app" ]; then
+            echo "has_metadata=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_metadata=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Salesforce code analysis
+        if: steps.check-metadata.outputs.has_metadata == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/code-analysis
+
+          set +e
+          sf scanner run \
+            --target force-app \
+            --format sarif \
+            --outfile .artifacts/code-analysis/results.sarif
+          scanner_exit=$?
+          set -e
+
+          # Parse SARIF and fail if any HIGH (severity 2) or CRITICAL (severity 1) finding exists.
+          # Severity mapping: 1=Critical, 2=High, 3=Medium, 4=Low, 5=Info
+          if [ -f ".artifacts/code-analysis/results.sarif" ]; then
+            node -e "
+              const fs = require('fs');
+              const sarif = JSON.parse(fs.readFileSync('.artifacts/code-analysis/results.sarif', 'utf8'));
+              let blocking = 0;
+              for (const run of (sarif.runs || [])) {
+                for (const result of (run.results || [])) {
+                  const level = result.level || '';
+                  // SARIF levels: 'error' = HIGH/CRITICAL, 'warning' = MEDIUM
+                  if (level === 'error') {
+                    blocking++;
+                    console.error('BLOCKING finding:', result.ruleId, '-', (result.message || {}).text || '');
+                  }
+                }
+              }
+              if (blocking > 0) {
+                console.error('::error title=Salesforce Code Analysis failed::' + blocking + ' error-level finding(s) detected. Fix before merging. See artifact code-analysis-\${{ github.run_id }}/results.sarif and RUNBOOK.md Section 8.');
+                process.exit(1);
+              }
+              console.log('No error-level findings. Code analysis passed.');
+            "
+          fi
+
+          # Also propagate non-zero exit from the scanner itself (e.g. tool crash).
+          exit $scanner_exit
+
+      - name: Skip code analysis when no metadata
+        if: steps.check-metadata.outputs.has_metadata != 'true'
+        run: |
+          echo "No Salesforce metadata found in force-app. Skipping code analysis."
+          mkdir -p .artifacts/code-analysis
+
+      - name: Upload code analysis artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: code-analysis-${{ github.run_id }}
+          path: .artifacts/code-analysis
+          if-no-files-found: ignore
+
+  salesforce-validate:
+    name: Salesforce Metadata Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: QA_ORG
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect Salesforce metadata changes
+        id: detect
+        env:
+          SFDX_METADATA_DIR: ${{ vars.SFDX_METADATA_DIR }}
+        run: |
+          set -euo pipefail
+
+          metadata_dir="${SFDX_METADATA_DIR:-force-app}"
+          artifacts_dir=".artifacts/salesforce-validate"
+          changed_files_file="$artifacts_dir/changed-files.txt"
+
+          mkdir -p "$artifacts_dir"
+          git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" | tee "$changed_files_file"
+
+          has_metadata_root=false
+          if [ -d "$metadata_dir" ]; then
+            has_metadata_root=true
+          fi
+
+          has_metadata_changes=false
+          if grep -Eq "^${metadata_dir}/" "$changed_files_file"; then
+            has_metadata_changes=true
+          fi
+
+          echo "metadata_dir=$metadata_dir" >> "$GITHUB_OUTPUT"
+          echo "has_metadata_root=$has_metadata_root" >> "$GITHUB_OUTPUT"
+          echo "has_metadata_changes=$has_metadata_changes" >> "$GITHUB_OUTPUT"
+
+      - name: Skip when no Salesforce metadata validation is needed
+        if: steps.detect.outputs.has_metadata_changes != 'true' || steps.detect.outputs.has_metadata_root != 'true'
+        run: |
+          if [ "${{ steps.detect.outputs.has_metadata_changes }}" != "true" ]; then
+            echo "No Salesforce metadata changes detected under ${{ steps.detect.outputs.metadata_dir }}. Skipping validate-only check."
+          else
+            echo "Salesforce metadata root ${{ steps.detect.outputs.metadata_dir }} is missing in this branch. Skipping validate-only check."
+          fi
+
+      - name: Setup Node.js
+        if: steps.detect.outputs.has_metadata_changes == 'true' && steps.detect.outputs.has_metadata_root == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install Salesforce CLI
+        if: steps.detect.outputs.has_metadata_changes == 'true' && steps.detect.outputs.has_metadata_root == 'true'
+        run: |
+          set -euo pipefail
+          npm install --global @salesforce/cli
+          sf --version
+
+      - name: Authenticate Salesforce org
+        if: steps.detect.outputs.has_metadata_changes == 'true' && steps.detect.outputs.has_metadata_root == 'true'
+        env:
+          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        run: |
+          set -euo pipefail
+
+          auth_file="$(mktemp)"
+          trap 'rm -f "$auth_file"' EXIT
+          printf '%s' "$SF_AUTH_URL" > "$auth_file"
+
+          sf org login sfdx-url \
+            --sfdx-url-file "$auth_file" \
+            --alias ci-validate-org \
+            --set-default
+
+      - name: Run Salesforce metadata validate-only
+        if: steps.detect.outputs.has_metadata_changes == 'true' && steps.detect.outputs.has_metadata_root == 'true'
+        run: npm run deploy -- --target-org ci-validate-org --validate-only --tests --source-dir ${{ steps.detect.outputs.metadata_dir }}
+
+      - name: Upload Salesforce validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: salesforce-validate-${{ github.run_id }}
+          path: .artifacts/deploy
+          if-no-files-found: ignore

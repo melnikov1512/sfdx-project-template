@@ -1,16 +1,16 @@
 ---
-applyTo: "README.md,.gitlab-ci.yml,package.json,sfdx-project.json,eslint.config.js,jest.config.js,.prettierrc,.github/agents/**,.github/instructions/**,.github/skills/**,.github/prompts/**,docs/*.md"
+applyTo: "README.md,.github/workflows/**,package.json,sfdx-project.json,eslint.config.js,jest.config.js,.prettierrc,.github/agents/**,.github/instructions/**,.github/skills/**,.github/prompts/**,docs/*.md"
 ---
 
 After modifying this file, check whether `README.md` needs updating.
 
 Update `README.md` if the change affects any of the following:
 - `npm` scripts listed in the **Commands** table (added, renamed, removed, or changed behaviour)
-- Prerequisites (Node.js version, SF CLI requirement, new required CI/CD variables)
-- CI/CD jobs listed in the **CI/CD pipeline** table (new job, renamed job, changed trigger)
+- Prerequisites (Node.js version, SF CLI requirement, new required secrets or variables)
+- CI/CD workflows listed in the **CI/CD pipelines** table (new workflow, renamed job, changed trigger)
 - Project structure (new top-level directory or significant structural change)
 - GitHub Copilot integration counts or file listings (agents, skills, instruction files, prompts)
-- CI/CD variables that users must configure
+- Repository secrets or variables that users must configure
 - Salesforce API version badge (`sourceApiVersion` in `sfdx-project.json`)
 - A new top-level doc file added under `docs/` (e.g. `docs/*.md`) that end users or contributors should discover — add a link to it in the relevant README section
 

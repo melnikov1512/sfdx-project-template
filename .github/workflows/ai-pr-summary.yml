@@ -1,0 +1,286 @@
+name: AI PR Summary
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+  models: read
+
+concurrency:
+  group: ai-pr-summary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ai-summary:
+    name: Generate AI PR Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      # ---------------------------------------------------------------------------
+      # Collect a secrets-free PR context:
+      #  - changed file list (metadata only, no content)
+      #  - filtered diff (lock files, env files, key/cert files excluded)
+      #  - commit messages (one-liner)
+      # Data is written to /tmp so the AI step can read it safely.
+      # ---------------------------------------------------------------------------
+      - name: Collect PR context (secrets-free)
+        id: context
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # 1. Changed files — names + status only, no content
+          git diff --name-status "$BASE_SHA" "$HEAD_SHA" \
+            > /tmp/changed_files.txt 2>/dev/null \
+            || echo "(no changes)" > /tmp/changed_files.txt
+
+          echo "=== Changed files ==="
+          cat /tmp/changed_files.txt
+
+          # 2. Diff — exclude lock files, env/key/cert files, binary blobs, IDE dirs
+          #    Truncated to 40 KB to stay well within token budgets.
+          git diff "$BASE_SHA" "$HEAD_SHA" \
+            -- ':!package-lock.json' ':!yarn.lock' ':!*.lock' \
+               ':!.env' ':!.env.*' ':!**/*.pem' ':!**/*.key' ':!**/*.cert' \
+               ':!.artifacts/**' ':!IlluminatedCloud/**' ':!**/*.zip' ':!**/*.jar' \
+            2>/dev/null \
+            | head -c 40960 > /tmp/pr_diff.txt || true
+
+          echo "Diff size: $(wc -c < /tmp/pr_diff.txt) bytes"
+
+          # 3. Commit messages
+          git log --oneline "$BASE_SHA..$HEAD_SHA" \
+            2>/dev/null > /tmp/commits.txt \
+            || echo "(no commits)" > /tmp/commits.txt
+
+      # ---------------------------------------------------------------------------
+      # Call GitHub Models API (gpt-4o-mini, no extra secret required).
+      # continue-on-error: true — AI failure must not break the pipeline.
+      # ---------------------------------------------------------------------------
+      - name: Generate AI summary
+        id: ai
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -uo pipefail
+
+          node << 'NODESCRIPT'
+          const https = require('https');
+          const fs = require('fs');
+
+          const changedFiles = fs.readFileSync('/tmp/changed_files.txt', 'utf8')
+            .split('\n').slice(0, 80).join('\n');
+          const commits = fs.readFileSync('/tmp/commits.txt', 'utf8');
+          const diff = fs.readFileSync('/tmp/pr_diff.txt', 'utf8').slice(0, 30000);
+
+          const prompt = [
+            'You are a senior code reviewer. Analyze this pull request and produce a concise structured summary.',
+            '',
+            `PR Title: ${process.env.PR_TITLE}`,
+            `PR Author: ${process.env.PR_AUTHOR}`,
+            `Base branch: ${process.env.PR_BASE_REF}`,
+            '',
+            'Changed files:',
+            changedFiles,
+            '',
+            'Commits:',
+            commits,
+            '',
+            'Diff (truncated to 30 KB):',
+            diff,
+            '',
+            'Respond ONLY with a valid JSON object — no markdown fences, no explanation outside the JSON:',
+            '{',
+            '  "what_changed": "2-4 bullet points (use • prefix) describing WHAT changed",',
+            '  "check_manually": "2-4 bullet points (use • prefix) of RISKS and items needing manual verification",',
+            '  "risk_level": "low|medium|high",',
+            '  "risk_reason": "one sentence explaining the risk level"',
+            '}',
+          ].join('\n');
+
+          const payload = JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.2,
+            max_tokens: 800
+          });
+
+          const options = {
+            hostname: 'models.inference.ai.azure.com',
+            path: '/chat/completions',
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payload)
+            }
+          };
+
+          const req = https.request(options, (res) => {
+            let body = '';
+            res.on('data', chunk => (body += chunk));
+            res.on('end', () => {
+              console.log('GitHub Models API status:', res.statusCode);
+              if (res.statusCode !== 200) {
+                console.error('API error response:', body.slice(0, 500));
+                process.exit(1);
+              }
+              try {
+                const data = JSON.parse(body);
+                const content = data.choices?.[0]?.message?.content ?? '';
+                fs.writeFileSync('/tmp/ai_content.txt', content);
+                console.log('AI response saved successfully.');
+              } catch (e) {
+                console.error('Failed to parse API response:', e.message);
+                process.exit(1);
+              }
+            });
+          });
+
+          req.on('error', (e) => {
+            console.error('HTTP request error:', e.message);
+            process.exit(1);
+          });
+
+          req.setTimeout(30000, () => {
+            console.error('Request timed out after 30 s');
+            req.destroy();
+            process.exit(1);
+          });
+
+          req.write(payload);
+          req.end();
+          NODESCRIPT
+
+      # ---------------------------------------------------------------------------
+      # Post (or update) the PR comment.
+      # Uses AI output when available; falls back to plain diff stats otherwise.
+      # ---------------------------------------------------------------------------
+      - name: Post PR summary comment
+        uses: actions/github-script@v7
+        env:
+          AI_STEP_OUTCOME: ${{ steps.ai.outcome }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            const aiSucceeded = process.env.AI_STEP_OUTCOME === 'success';
+
+            let summaryBody = null;
+
+            // ── AI path ──────────────────────────────────────────────────────────
+            if (aiSucceeded) {
+              try {
+                const raw = fs.readFileSync('/tmp/ai_content.txt', 'utf8').trim();
+                // Tolerant parse: strip optional markdown fences before JSON
+                const match = raw.match(/\{[\s\S]*\}/);
+                if (!match) throw new Error('No JSON object found in AI response');
+                const parsed = JSON.parse(match[0]);
+
+                if (!parsed.what_changed || !parsed.check_manually || !parsed.risk_level) {
+                  throw new Error('AI response missing required fields');
+                }
+
+                const riskEmoji =
+                  parsed.risk_level === 'high'   ? '🔴' :
+                  parsed.risk_level === 'medium' ? '🟡' : '🟢';
+
+                summaryBody = [
+                  '## 🤖 AI PR Summary',
+                  '',
+                  '### 📋 What Changed',
+                  parsed.what_changed,
+                  '',
+                  '### 🔍 What to Check Manually',
+                  parsed.check_manually,
+                  '',
+                  `### ${riskEmoji} Risk Level: ${parsed.risk_level.toUpperCase()}`,
+                  parsed.risk_reason ?? '',
+                  '',
+                  '---',
+                  '<sub>Generated by GitHub Models (gpt-4o-mini) · [Workflow](.github/workflows/ai-pr-summary.yml) · If inaccurate, proceed with manual review</sub>',
+                ].join('\n');
+              } catch (e) {
+                core.warning(`AI response parse failed: ${e.message} — falling back to diff stats.`);
+                summaryBody = null;
+              }
+            }
+
+            // ── Fallback path ─────────────────────────────────────────────────────
+            if (!summaryBody) {
+              let changedFiles = '(unavailable)';
+              let commits = '(unavailable)';
+              try {
+                changedFiles = fs.readFileSync('/tmp/changed_files.txt', 'utf8').trim() || '(no changes)';
+                commits     = fs.readFileSync('/tmp/commits.txt', 'utf8').trim()        || '(no commits)';
+              } catch (_) {}
+
+              summaryBody = [
+                '## 🤖 AI PR Summary',
+                '',
+                '> ⚠️ AI analysis unavailable — showing basic change summary instead.',
+                '',
+                '### 📋 Changed Files',
+                '```',
+                changedFiles,
+                '```',
+                '',
+                '### 📝 Commits',
+                '```',
+                commits,
+                '```',
+                '',
+                '---',
+                '<sub>Fallback mode · [Workflow](.github/workflows/ai-pr-summary.yml) · Review changes manually</sub>',
+              ].join('\n');
+            }
+
+            // ── Upsert comment (idempotent on force-push) ─────────────────────────
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const existing = comments.find(
+              c => c.user.type === 'Bot' && c.body.includes('🤖 AI PR Summary')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                comment_id: existing.id,
+                body: summaryBody
+              });
+              console.log('Updated existing AI PR summary comment.');
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: context.issue.number,
+                body: summaryBody
+              });
+              console.log('Created new AI PR summary comment.');
+            }

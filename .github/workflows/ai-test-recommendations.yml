@@ -1,0 +1,364 @@
+name: AI Test Recommendations
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+  models: read
+
+concurrency:
+  group: ai-test-rec-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ai-test-recommendations:
+    name: Generate AI Test Recommendations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      # ---------------------------------------------------------------------------
+      # Collect a secrets-free PR context:
+      #  - changed file list (metadata only, no content)
+      #  - filtered diff (lock files, env files, key/cert files excluded)
+      #  - commit messages (one-liner)
+      # Data is written to /tmp so subsequent steps can read it safely.
+      # ---------------------------------------------------------------------------
+      - name: Collect PR context (secrets-free)
+        id: context
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # 1. Changed files — names + status only, no content
+          git diff --name-status "$BASE_SHA" "$HEAD_SHA" \
+            > /tmp/changed_files.txt 2>/dev/null \
+            || echo "(no changes)" > /tmp/changed_files.txt
+
+          echo "=== Changed files ==="
+          cat /tmp/changed_files.txt
+
+          # 2. Diff — exclude lock files, env/key/cert files, binary blobs, IDE dirs
+          #    Truncated to 40 KB to stay well within token budgets.
+          git diff "$BASE_SHA" "$HEAD_SHA" \
+            -- ':!package-lock.json' ':!yarn.lock' ':!*.lock' \
+               ':!.env' ':!.env.*' ':!**/*.pem' ':!**/*.key' ':!**/*.cert' \
+               ':!.artifacts/**' ':!IlluminatedCloud/**' ':!**/*.zip' ':!**/*.jar' \
+            2>/dev/null \
+            | head -c 40960 > /tmp/pr_diff.txt || true
+
+          echo "Diff size: $(wc -c < /tmp/pr_diff.txt) bytes"
+
+          # 3. Commit messages
+          git log --oneline "$BASE_SHA..$HEAD_SHA" \
+            2>/dev/null > /tmp/commits.txt \
+            || echo "(no commits)" > /tmp/commits.txt
+
+      # ---------------------------------------------------------------------------
+      # Classify each changed file path into one of:
+      #   lwc        — any path matching **/lwc/**
+      #   apex       — files ending in .cls or .trigger
+      #   metadata   — anything else inside force-app/
+      #   config_ci  — everything else (config, CI, tooling, docs, …)
+      # Outputs:
+      #   /tmp/file_categories.json    — machine-readable for the comment step
+      #   /tmp/classified_summary.txt  — human-readable grouped list for the prompt
+      # ---------------------------------------------------------------------------
+      - name: Classify changed files
+        id: classify
+        run: |
+          node << 'NODESCRIPT'
+          const fs = require('fs');
+
+          const raw = fs.readFileSync('/tmp/changed_files.txt', 'utf8').trim();
+          const lines = raw === '(no changes)' ? [] : raw.split('\n').filter(Boolean);
+
+          const categories = { lwc: [], apex: [], metadata: [], config_ci: [] };
+
+          for (const line of lines) {
+            // git diff --name-status lines: "<STATUS>\t<PATH>"
+            const parts = line.split('\t');
+            const filePath = parts[parts.length - 1].trim();
+
+            if (/\/lwc\//.test(filePath) || filePath.startsWith('lwc/')) {
+              categories.lwc.push(filePath);
+            } else if (/\.(cls|trigger)$/.test(filePath)) {
+              categories.apex.push(filePath);
+            } else if (filePath.startsWith('force-app/')) {
+              categories.metadata.push(filePath);
+            } else {
+              categories.config_ci.push(filePath);
+            }
+          }
+
+          fs.writeFileSync('/tmp/file_categories.json', JSON.stringify(categories, null, 2));
+
+          // Human-readable summary for the AI prompt
+          const sections = [];
+          if (categories.lwc.length)       sections.push(`LWC Components:\n${categories.lwc.map(f => `  - ${f}`).join('\n')}`);
+          if (categories.apex.length)      sections.push(`Apex Classes/Triggers:\n${categories.apex.map(f => `  - ${f}`).join('\n')}`);
+          if (categories.metadata.length)  sections.push(`Salesforce Metadata:\n${categories.metadata.map(f => `  - ${f}`).join('\n')}`);
+          if (categories.config_ci.length) sections.push(`Config / CI / Other:\n${categories.config_ci.map(f => `  - ${f}`).join('\n')}`);
+
+          const summary = sections.length ? sections.join('\n\n') : '(no changed files)';
+          fs.writeFileSync('/tmp/classified_summary.txt', summary);
+
+          console.log('Classification complete:');
+          console.log(`  LWC: ${categories.lwc.length}, Apex: ${categories.apex.length}, Metadata: ${categories.metadata.length}, Config/CI: ${categories.config_ci.length}`);
+          NODESCRIPT
+
+      # ---------------------------------------------------------------------------
+      # Call GitHub Models API (gpt-4o-mini, no external secret required).
+      # continue-on-error: true — AI failure must never break the pipeline.
+      # ---------------------------------------------------------------------------
+      - name: Generate AI test recommendations
+        id: ai
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -uo pipefail
+
+          node << 'NODESCRIPT'
+          const https = require('https');
+          const fs = require('fs');
+
+          const classifiedSummary = fs.readFileSync('/tmp/classified_summary.txt', 'utf8');
+          const diff = fs.readFileSync('/tmp/pr_diff.txt', 'utf8').slice(0, 28000);
+
+          const prompt = [
+            'You are a senior Salesforce QA engineer. Analyze this pull request and produce focused, actionable test recommendations.',
+            '',
+            `PR Title: ${process.env.PR_TITLE}`,
+            `PR Author: ${process.env.PR_AUTHOR}`,
+            '',
+            'Changed files by category:',
+            classifiedSummary,
+            '',
+            'Diff (truncated to 28 KB):',
+            diff,
+            '',
+            'Respond ONLY with a valid JSON object — no markdown fences, no explanation outside the JSON:',
+            '{',
+            '  "recommendations": [',
+            '    { "file": "path/to/file", "type": "lwc|apex|metadata|config_ci", "test_cases": ["test case 1", "test case 2"] }',
+            '  ],',
+            '  "overall_risk": "low|medium|high",',
+            '  "summary": "one sentence summary of test focus"',
+            '}',
+            '',
+            'Rules:',
+            '- Include one entry per changed file that warrants testing (skip pure config with no logic).',
+            '- test_cases should be concrete, scenario-based descriptions (not just "write a unit test").',
+            '- overall_risk reflects the combined blast radius of all changes.',
+            '- summary is exactly one sentence.',
+          ].join('\n');
+
+          const payload = JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.2,
+            max_tokens: 1000
+          });
+
+          const options = {
+            hostname: 'models.inference.ai.azure.com',
+            path: '/chat/completions',
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payload)
+            }
+          };
+
+          const req = https.request(options, (res) => {
+            let body = '';
+            res.on('data', chunk => (body += chunk));
+            res.on('end', () => {
+              console.log('GitHub Models API status:', res.statusCode);
+              if (res.statusCode !== 200) {
+                console.error('API error response:', body.slice(0, 500));
+                process.exit(1);
+              }
+              try {
+                const data = JSON.parse(body);
+                const content = data.choices?.[0]?.message?.content ?? '';
+                fs.writeFileSync('/tmp/ai_test_rec.txt', content);
+                console.log('AI test recommendations saved successfully.');
+              } catch (e) {
+                console.error('Failed to parse API response:', e.message);
+                process.exit(1);
+              }
+            });
+          });
+
+          req.on('error', (e) => {
+            console.error('HTTP request error:', e.message);
+            process.exit(1);
+          });
+
+          req.setTimeout(30000, () => {
+            console.error('Request timed out after 30 s');
+            req.destroy();
+            process.exit(1);
+          });
+
+          req.write(payload);
+          req.end();
+          NODESCRIPT
+
+      # ---------------------------------------------------------------------------
+      # Post (or update) the PR comment.
+      # Uses AI output when available; falls back to plain file list otherwise.
+      # Upsert logic: find existing Bot comment with the marker, update it;
+      # otherwise create a new comment (idempotent on force-push).
+      # ---------------------------------------------------------------------------
+      - name: Post test recommendations comment
+        uses: actions/github-script@v7
+        env:
+          AI_STEP_OUTCOME: ${{ steps.ai.outcome }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            const aiSucceeded = process.env.AI_STEP_OUTCOME === 'success';
+
+            const MARKER = '🧪 AI Test Recommendations';
+            let commentBody = null;
+
+            // ── AI success path ───────────────────────────────────────────────────
+            if (aiSucceeded) {
+              try {
+                const raw = fs.readFileSync('/tmp/ai_test_rec.txt', 'utf8').trim();
+                // Tolerant parse: strip optional markdown fences before JSON
+                const match = raw.match(/\{[\s\S]*\}/);
+                if (!match) throw new Error('No JSON object found in AI response');
+                const parsed = JSON.parse(match[0]);
+
+                if (!parsed.recommendations || !parsed.overall_risk || !parsed.summary) {
+                  throw new Error('AI response missing required fields');
+                }
+
+                const riskEmoji =
+                  parsed.overall_risk === 'high'   ? '🔴' :
+                  parsed.overall_risk === 'medium' ? '🟡' : '🟢';
+
+                // Build recommendations table rows
+                const typeLabel = (t) => {
+                  switch (t) {
+                    case 'lwc':       return 'LWC';
+                    case 'apex':      return 'Apex';
+                    case 'metadata':  return 'Metadata';
+                    case 'config_ci': return 'Config/CI';
+                    default:          return t;
+                  }
+                };
+
+                const tableRows = parsed.recommendations.map(r => {
+                  const cases = Array.isArray(r.test_cases)
+                    ? r.test_cases.map(c => `• ${c}`).join('<br>')
+                    : String(r.test_cases);
+                  return `| \`${r.file}\` | ${typeLabel(r.type)} | ${cases} |`;
+                }).join('\n');
+
+                const tableHeader = tableRows
+                  ? `| File | Type | Suggested Test Cases |\n|------|------|---------------------|\n${tableRows}`
+                  : '_No file-level recommendations generated._';
+
+                commentBody = [
+                  `## ${MARKER}`,
+                  '',
+                  '> ⚠️ **Advisory only** — these suggestions do not replace mandatory automated tests (`npm run test:lwc:ci`, Apex test classes, Salesforce metadata validate). Use them as a checklist supplement.',
+                  '',
+                  '### 📋 Summary',
+                  parsed.summary,
+                  '',
+                  '### 🎯 Recommendations by File',
+                  '',
+                  tableHeader,
+                  '',
+                  `### ${riskEmoji} Overall Risk: ${parsed.overall_risk.toUpperCase()}`,
+                  '',
+                  '---',
+                  '<sub>Generated by GitHub Models (gpt-4o-mini) · [Workflow](.github/workflows/ai-test-recommendations.yml) · Advisory only — verify with your team</sub>',
+                ].join('\n');
+              } catch (e) {
+                core.warning(`AI response parse failed: ${e.message} — falling back to file list.`);
+                commentBody = null;
+              }
+            }
+
+            // ── Fallback path ─────────────────────────────────────────────────────
+            if (!commentBody) {
+              let changedFiles = '(unavailable)';
+              try {
+                changedFiles = fs.readFileSync('/tmp/changed_files.txt', 'utf8').trim() || '(no changes)';
+              } catch (_) {}
+
+              commentBody = [
+                `## ${MARKER}`,
+                '',
+                '> ⚠️ AI analysis unavailable — showing changed files list instead. Review test coverage manually.',
+                '',
+                '### 📋 Changed Files',
+                '```',
+                changedFiles,
+                '```',
+                '',
+                'Please ensure adequate test coverage for all changed files, following project conventions:',
+                '- **LWC**: Jest unit tests via `npm run test:lwc:ci`',
+                '- **Apex**: Apex test classes with ≥75% coverage',
+                '- **Metadata**: Validate in a scratch org or sandbox before merging',
+                '',
+                '---',
+                '<sub>Fallback mode · [Workflow](.github/workflows/ai-test-recommendations.yml) · Advisory only — verify with your team</sub>',
+              ].join('\n');
+            }
+
+            // ── Upsert comment (idempotent on force-push) ─────────────────────────
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const existing = comments.find(
+              c => c.user.type === 'Bot' && c.body.includes(MARKER)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                comment_id: existing.id,
+                body: commentBody
+              });
+              console.log('Updated existing AI test recommendations comment.');
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+              console.log('Created new AI test recommendations comment.');
+            }
