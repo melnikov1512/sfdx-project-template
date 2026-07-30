@@ -84,7 +84,7 @@ Every agent, before starting any task, **must**:
 ## Project-Specific Conventions
 
 - **Language**: all code comments and all documentation (README, AGENTS.md, `docs/**`, ApexDoc/JSDoc, inline comments) must be written in English only, regardless of the chat language.
-- **Link verification**: never state/output a URL unless it was just confirmed live via an actual tool call/fetch in the current turn — never cite a URL reconstructed from memory. If fetch-based tools fail or are blocked, fall back to a browser tool (Playwright) before concluding a link is dead. Full rule: see "Link Verification (CRITICAL)" in `.github/copilot-instructions.md`.
+- **Link verification**: never state/output a URL unless it was just confirmed live via an actual tool call/fetch in the current turn — never cite a URL reconstructed from memory. For JS-heavy/SPA doc sites (Salesforce Help/Developer docs, Trailhead, Lightning Design System), go straight to a browser tool (Playwright). Verification budget is max 2 attempts per link — if still unverifiable or Playwright is unavailable, stop and tell the user. Full rule: see "Link Verification (CRITICAL)" in `.github/copilot-instructions.md`.
 - Always use `sf` (SF CLI v2), not `sfdx` (deprecated).
 - Use **ESLint flat config** (`eslint.config.js`), not legacy `.eslintrc*`.
 - **Code formatting** uses `.prettierrc` with `tabWidth: 4` (4-space indent) for all supported file types (JS, CSS, HTML, JSON, Apex, XML, YAML, Markdown). `.prettierignore` excludes `.idea/`, `IlluminatedCloud/`, `.npm-cache/`, `node_modules/`, `.github/`, `.husky/`, and all `*.md` files (Markdown is not auto-formatted by `npm run prettier`).

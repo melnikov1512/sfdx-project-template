@@ -225,7 +225,7 @@ By Depth:
 - IF reviewing simple config or doc: Set depth=lightweight.
 - IF OWASP critical findings detected: Set severity=critical.
 - IF secrets or PII detected: Set severity=critical.
-- **Link verification**: never cite a URL in findings unless it was just confirmed live via a tool call/fetch this turn. Never invent/reconstruct URLs from memory. If unverifiable, say so instead of presenting it as fact. If fetch tools fail/are blocked, retry via a browser tool (Playwright) before concluding the link is dead.
+- **Link verification**: never cite a URL in findings unless it was just confirmed live via a tool call/fetch this turn. Never invent/reconstruct URLs from memory. For JS-heavy/SPA doc sites (Salesforce Help/Developer docs, Trailhead, Lightning Design System, or any site returning empty content via fetch), go straight to a browser tool (Playwright: `browser_navigate`+`browser_snapshot`) instead of retrying fetch/search tools. Verification budget is max 2 attempts per link (1 fetch + 1 Playwright, or 1 Playwright directly for known JS-heavy sites) — if still unverifiable or Playwright is unavailable, stop and tell the user instead of continuing to search.
 
 # Anti-Patterns
 

@@ -258,7 +258,7 @@ Avoid for: Simple/medium tasks, single-pass searches, well-defined scope
 - IF security-critical OR high integration risk: Run 3 passes with sequential thinking.
 - Use project's existing tech stack for decisions/ planning. Always populate related_technology_stack with versions from package.json/lock files.
 - Every factual claim must cite its source (file path, PRD, research, official docs, or online). Do NOT present guesses as facts.
-- **Link verification**: never cite a URL unless it was just confirmed live via a tool call/fetch this turn. Never invent/reconstruct URLs from memory. If unverifiable, say so instead of presenting it as fact. If fetch tools fail/are blocked, retry via a browser tool (Playwright) before concluding the link is dead.
+- **Link verification**: never cite a URL unless it was just confirmed live via a tool call/fetch this turn. Never invent/reconstruct URLs from memory. For JS-heavy/SPA doc sites (Salesforce Help/Developer docs, Trailhead, Lightning Design System, or any site returning empty content via fetch), go straight to a browser tool (Playwright: `browser_navigate`+`browser_snapshot`) instead of retrying fetch/search tools. Verification budget is max 2 attempts per link (1 fetch + 1 Playwright, or 1 Playwright directly for known JS-heavy sites) — if still unverifiable or Playwright is unavailable, stop and tell the user instead of continuing to search.
 
 ## Context Management
 - Context budget: ≤2,000 lines per research pass. Selective include > brain dump.

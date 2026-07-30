@@ -69,8 +69,9 @@ Approving or commenting on a plan is **not** permission to implement it.
 
 - Never state or output a URL (chat, code comments, commit/PR text, generated docs) unless it was just confirmed as live: either returned directly by a tool call in the current turn (search results, `get_file_contents`, API responses), or actually fetched (`web_fetch`, `tavily_extract`/`tavily_search`, `fetch-fetch`) and shown to return a successful response with real, on-topic content.
 - Never invent or reconstruct a URL from memory/training data (e.g., guessing a docs path pattern) and present it as fact.
-- If a link cannot be verified, say so explicitly (e.g., "I could not verify this link is live") instead of presenting a possibly-broken link as fact; prefer citing the resource name/search query over a guessed URL.
-- If the primary fetch tools fail to verify a link (blocked, JS-rendered, CAPTCHA, timeout, non-200), retry verification using a browser automation tool (e.g., Playwright: `browser_navigate` + `browser_snapshot`) before concluding the link is dead or unreachable.
+- For known JS-heavy / SPA documentation sites (`help.salesforce.com`, `developer.salesforce.com`, Trailhead, Lightning Design System), or any site that already returned empty/placeholder content from a non-browser fetch tool, skip straight to a browser automation tool (Playwright: `browser_navigate` + `browser_snapshot`) instead of retrying non-browser fetch/search tools.
+- **Verification budget: at most 2 tool-call attempts per link** — 1 non-browser fetch attempt + 1 Playwright attempt, or just 1 Playwright attempt directly when the site is already known to be JS-heavy. No further retries, alternate queries, or alternate URL guesses are allowed beyond this budget.
+- If the link is still unverifiable after this budget is exhausted, or Playwright is unavailable/fails, **stop immediately** and explicitly tell the user the link could not be verified (or ask the user to confirm/provide the correct link) — do not continue searching indefinitely or keep spending tokens trying to open more links; prefer citing the resource name/search query over a guessed URL.
 
 ### Language (CRITICAL)
 

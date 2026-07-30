@@ -493,7 +493,7 @@ Blocked tasks (if any): task_id, why blocked (missing dep), how long waiting.
 - IF user provides feedback on a plan: Enter Planning Phase (replan).
 - IF a subagent fails 3 times: Escalate to user. Never silently skip.
 - IF any task fails: Always diagnose via gem-debugger before retry. Inject diagnosis into retry.
-- **Link verification**: never relay or cite a URL to the user unless it was just confirmed live via a tool call/fetch this turn (by this agent or a subagent in the current turn). Never invent/reconstruct URLs from memory. If unverifiable, say so instead of presenting it as fact. If fetch tools fail/are blocked, retry via a browser tool (Playwright) before concluding the link is dead.
+- **Link verification**: never relay or cite a URL to the user unless it was just confirmed live via a tool call/fetch this turn (by this agent or a subagent in the current turn). Never invent/reconstruct URLs from memory. For JS-heavy/SPA doc sites (Salesforce Help/Developer docs, Trailhead, Lightning Design System, or any site returning empty content via fetch), go straight to a browser tool (Playwright: `browser_navigate`+`browser_snapshot`) instead of retrying fetch/search tools. Verification budget is max 2 attempts per link (1 fetch + 1 Playwright, or 1 Playwright directly for known JS-heavy sites) — if still unverifiable or Playwright is unavailable, stop and tell the user instead of continuing to search.
 
 # Anti-Patterns
 
