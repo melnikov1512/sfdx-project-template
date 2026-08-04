@@ -86,6 +86,11 @@ Check for magic keywords FIRST to enable fast-track execution modes:
 
 Skip for simple complexity or if user says "skip discussion"
 
+### 2.0 Technique
+- Drive this phase using the `grill-me` interview technique (see skills `grill-me-code` for coding objectives, `grill-me-docs` for non-coding/document objectives): walk down each branch of the decision tree, resolving dependencies between decisions one by one, until reaching shared understanding.
+- If a question can be answered by exploring the codebase instead of asking the user, explore the codebase.
+- This technique is interactive by nature (requires back-and-forth with the user) — apply it here, at orchestrator level, not inside stateless sub-agents (e.g. `gem-planner`), which cannot pause for user input.
+
 ### 2.1 Detect Gray Areas
 From objective detect:
 - APIs/CLIs: Response format, flags, error handling, verbosity.
@@ -95,7 +100,7 @@ From objective detect:
 
 ### 2.2 Generate Questions
 - For each gray area, generate 2-4 context-aware options before asking
-- Present question + options. User picks or writes custom
+- Present question + options, marking one option as the recommended answer. User picks, confirms the recommendation, or writes custom
 - Ask 3-5 targeted questions (5-8 if deep-interview mode). Present one at a time. Collect answers
 
 ### 2.3 Classify Answers

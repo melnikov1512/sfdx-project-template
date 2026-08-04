@@ -21,7 +21,7 @@ Clone this template, add your metadata to `force-app/`, configure the `SF_AUTH_U
 - **Apex SAST** — `sf code-analyzer` (SARIF output) on every PR; blocks on `error`-level findings
 - **Pre-commit hooks** — Husky + lint-staged: format → lint → related LWC tests, automatically
 - **CI pipelines** — PR checks, metadata validate-only gate, security scanning, AI PR summaries, and guarded manual deploys
-- **GitHub Copilot** — 18 custom agents, 7 instruction files, 19 skills, and prompt files pre-wired under `.github/`
+- **GitHub Copilot** — 18 custom agents, 7 instruction files, 21 skills, and prompt files pre-wired under `.github/`
 
 ## Prerequisites
 
@@ -76,7 +76,7 @@ sfdx-project-template/
 │   ├── agents/                # 18 Copilot custom agents
 │   ├── instructions/          # Auto-applied Copilot instruction files
 │   ├── prompts/               # Reusable Copilot prompt files
-│   ├── skills/                # 19 on-demand Copilot skills
+│   ├── skills/                # 21 on-demand Copilot skills
 │   └── workflows/             # CI/CD pipeline definitions
 ├── sfdx-project.json          # API v66.0, package dir: force-app
 ├── .prettierrc                # Prettier config: 4-space indent, Apex + XML plugins
@@ -187,7 +187,7 @@ The `.github/` directory ships a complete Copilot workspace setup:
 
 **Custom agents** — 18 specialized sub-agents including `gem-apex-specialist`, `gem-lwc-specialist`, `gem-sf-data-architect`, `gem-orchestrator`, `gem-implementer`, `gem-reviewer`, `gem-debugger`, and more.
 
-**Skills** — 19 on-demand workflows: `create-implementation-plan`, `refactor-plan`, `architecture-blueprint-generator`, `github-issues`, Tavily search/research/crawl, and more.
+**Skills** — 21 on-demand workflows: `create-implementation-plan`, `refactor-plan`, `architecture-blueprint-generator`, `github-issues`, `grill-me-code`, `grill-me-docs`, Tavily search/research/crawl, and more.
 
 **Prompt files** — reusable prompts for common Salesforce tasks (e.g., `create-exception-handler`).
 
