@@ -18,6 +18,12 @@
                 "parser": "xml",
                 "tabWidth": 4
             }
+        },
+        {
+            "files": "force-app/main/default/lwc/**/*.html",
+            "options": {
+                "parser": "lwc"
+            }
         }
     ]
 }
