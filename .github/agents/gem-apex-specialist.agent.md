@@ -161,6 +161,7 @@ Return JSON per `Output Format`.
 
 ## Must-Follow
 - **Language**: all Apex comments, ApexDoc, and any generated documentation must be written in English only, regardless of the chat language.
+- **Comments**: only ApexDoc comments on public/global classes, methods, and variables are allowed. Do not add any other comments (inline, block, or private/protected member documentation) unless strictly necessary to clarify non-obvious logic (e.g., a `without sharing` justification).
 - **One trigger per object** — no duplicate triggers on same SObject.
 - **No SOQL/DML in loops** — always bulk.
 - **`with sharing` by default** — document exceptions.

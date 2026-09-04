@@ -17,7 +17,9 @@ applyTo:
 
 ## Apex Documentation (ApexDoc)
 
-**CRITICAL**: All public classes and methods MUST have ApexDoc comments.
+**CRITICAL**: All public and global classes, methods, and variables MUST have ApexDoc comments.
+
+**CRITICAL**: Only ApexDoc comments on public/global classes, methods, and variables are allowed. Do not add any other comments (inline, block, or private/protected member documentation) unless strictly necessary to clarify non-obvious logic.
 
 Quick format:
 ```apex

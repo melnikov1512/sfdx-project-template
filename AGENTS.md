@@ -86,6 +86,7 @@ Every agent, before starting any task, **must**:
 ## Project-Specific Conventions
 
 - **Language**: all code comments and all documentation (README, AGENTS.md, `docs/**`, ApexDoc/JSDoc, inline comments) must be written in English only, regardless of the chat language.
+- **Apex comments**: only ApexDoc comments on public/global classes, methods, and variables are allowed. No other inline/block comments unless strictly necessary to clarify non-obvious logic. See `.github/instructions/apex-patterns.instructions.md`. This rule is not automatically inherited by sub-agents — duplicated in `gem-implementer.agent.md` and `gem-apex-specialist.agent.md`.
 - **Link verification**: never state/output a URL unless it was just confirmed live via an actual tool call/fetch in the current turn — never cite a URL reconstructed from memory. For JS-heavy/SPA doc sites (Salesforce Help/Developer docs, Trailhead, Lightning Design System), go straight to a browser tool (Playwright). Verification budget is max 2 attempts per link — if still unverifiable or Playwright is unavailable, stop and tell the user. Full rule: see "Link Verification (CRITICAL)" in `.github/copilot-instructions.md`.
 - Always use `sf` (SF CLI v2), not `sfdx` (deprecated).
 - Use **ESLint flat config** (`eslint.config.js`), not legacy `.eslintrc*`.

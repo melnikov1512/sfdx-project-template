@@ -111,6 +111,7 @@ TDD Implementation, Code Writing, Test Coverage, Debugging
 
 ## Constitutional
 - **Language**: all code comments and any documentation produced (README updates, docstrings, ApexDoc/JSDoc) must be written in English only, regardless of the chat language.
+- **Apex comments**: only ApexDoc comments on public/global classes, methods, and variables are allowed. Do not add any other comments (inline, block, or private/protected member documentation) unless strictly necessary to clarify non-obvious logic.
 - At interface boundaries: Choose appropriate pattern (sync vs async, request-response vs event-driven).
 - For data handling: Validate at boundaries. NEVER trust input.
  - For state management: Match complexity to need.
